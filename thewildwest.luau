@@ -107,6 +107,7 @@ end)
 
 RunService.RenderStepped:Connect(function(Delta)
     for Address, Table in Ores.GoldOres do
+        if Table.RockOre.Position == nil then continue end
         local ScreenPosition, OnScreen = WorldToScreen(Table.RockOre.Position)
         if not OnScreen then
             Table.Text.Visible = false
@@ -147,6 +148,7 @@ RunService.RenderStepped:Connect(function(Delta)
     end
 
     for Address, Table in Ores.SilverOres do
+        if Table.RockOre.Position == nil then continue end
         local ScreenPosition, OnScreen = WorldToScreen(Table.RockOre.Position)
         if not OnScreen then
             Table.Text.Visible = false
