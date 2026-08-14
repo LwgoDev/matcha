@@ -14,6 +14,12 @@ local ANIMALS = {
     Capybara = { normal = 250 },
 }
 
+
+local Ores = {
+    GoldOres = {},
+    SilverOres = {}
+}
+
 local generalEnabled = false
 local legendaryEnabled = false
 local GoldEnabled = false
@@ -403,6 +409,63 @@ RunService.RenderStepped:Connect(function(delta)
     if scanTimer >= SCAN_INTERVAL then
         scanTimer = 0
         scanAnimals()
+        for _, Ore in Paths.Ores:FindFirstChild("Gold"):GetChildren() do
+            local RockOre = Ore:FindFirstChild("RockOre")
+            if not RockOre then continue end
+
+            if Ores.GoldOres[RockOre.Address] then continue end
+            local IsBig = false
+            Ores.GoldOres[RockOre.Address] = {
+                RockOre = RockOre,
+                OreRemaining = Ore.DepositInfo.OreRemaining,
+                Big = IsBig,
+                Text = DrawText(Vector2.new(0, 0), "---", Drawing.Fonts.Minecraft, true, Color3.fromRGB(255, 200, 0), 1),
+                AmountText = DrawText(Vector2.new(0, 0), "---", Drawing.Fonts.Minecraft, true, Color3.fromRGB(255, 255, 255), 1)
+            }
+        end
+        for _, Ore in Paths.Ores:FindFirstChild("GoldVein"):GetChildren() do
+            local RockOre = Ore:FindFirstChild("RockOre")
+            if not RockOre then continue end
+
+            if Ores.GoldOres[RockOre.Address] then continue end
+            local IsBig = true
+            Ores.GoldOres[RockOre.Address] = {
+                RockOre = RockOre,
+                OreRemaining = Ore.DepositInfo.OreRemaining,
+                Big = IsBig,
+                Text = DrawText(Vector2.new(0, 0), "---", Drawing.Fonts.Minecraft, true, Color3.fromRGB(255, 200, 0), 1),
+                AmountText = DrawText(Vector2.new(0, 0), "---", Drawing.Fonts.Minecraft, true, Color3.fromRGB(255, 255, 255), 1)
+            }
+        end
+
+        for _, Ore in Paths.Ores:FindFirstChild("Silver"):GetChildren() do
+            local RockOre = Ore:FindFirstChild("RockOre")
+            if not RockOre then continue end
+
+            if Ores.SilverOres[RockOre.Address] then continue end
+            local IsBig = false
+            Ores.SilverOres[RockOre.Address] = {
+                RockOre = RockOre,
+                OreRemaining = Ore.DepositInfo.OreRemaining,
+                Big = IsBig,
+                Text = DrawText(Vector2.new(0, 0), "---", Drawing.Fonts.Minecraft, true, Color3.fromRGB(255, 200, 0), 1),
+                AmountText = DrawText(Vector2.new(0, 0), "---", Drawing.Fonts.Minecraft, true, Color3.fromRGB(255, 255, 255), 1)
+            }
+        end
+        for _, Ore in Paths.Ores:FindFirstChild("SilverVein"):GetChildren() do
+            local RockOre = Ore:FindFirstChild("RockOre")
+            if not RockOre then continue end
+
+            if Ores.SilverOres[RockOre.Address] then continue end
+            local IsBig = true
+            Ores.SilverOres[RockOre.Address] = {
+                RockOre = RockOre,
+                OreRemaining = Ore.DepositInfo.OreRemaining,
+                Big = IsBig,
+                Text = DrawText(Vector2.new(0, 0), "---", Drawing.Fonts.Minecraft, true, Color3.fromRGB(255, 200, 0), 1),
+                AmountText = DrawText(Vector2.new(0, 0), "---", Drawing.Fonts.Minecraft, true, Color3.fromRGB(255, 255, 255), 1)
+            }
+        end
     end
 
     if frameCounter % UPDATE_EVERY_N_FRAMES == 0 then
