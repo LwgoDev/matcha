@@ -1,0 +1,6663 @@
+local x = game:GetService("Players") or game.Players;
+local I = game:GetService("ReplicatedStorage") or game.ReplicatedStorage;
+local y = game:GetService("RunService") or game.RunService;
+local TS = game:GetService("TweenService") or game.TweenService;
+local G = workspace;
+local Z = x.LocalPlayer;
+if _G.Slayers2 then
+	local x = _G.Slayers2;
+	_G.Slayers2 = nil;
+	x.Running = false;
+	pcall(function()
+		if x.drawConn then
+			x.drawConn:Disconnect();
+		end;
+	end);
+	pcall(function()
+		if x.tickConn then
+			x.tickConn:Disconnect();
+		end;
+	end);
+	pcall(function()
+		if x.fishConn then
+			x.fishConn:Disconnect();
+		end;
+	end);
+	pcall(function()
+		if x.bmConn then
+			x.bmConn:Disconnect();
+		end;
+	end);
+	pcall(function()
+		if x.deferConn then
+			x.deferConn:Disconnect();
+		end;
+	end);
+	x.fishConn, x.tickConn, x.drawConn, x.bmConn = nil, nil, nil, nil;
+	x.deferConn = nil;
+	x.fish, x.bar, x.route, x.collect, x.follow = nil, nil, nil, nil, nil;
+	x.soul, x.dlg, x.dlgClick, x.crow, x.lootPhase = nil, nil, nil, nil, nil;
+	pcall(function()
+		mouse1release();
+	end);
+	pcall(function()
+		mouse2release();
+	end);
+	pcall(function()
+		keyrelease(84);
+	end);
+	x.pool = nil;
+	if true then
+ 
+	end;
+	pcall(function()
+		if x.win then
+			x.win:Destroy();
+		end;
+	end);
+end;
+local j;
+do
+	local x = rawget(_G, "UILib");
+	if type(x) == "table" then
+		local I = tonumber(rawget(x, "_now"));
+		if I and ((tick() - I) > 3 and type(rawget(x, "_rehome")) ~= "function") then
+			_G.UI_RELOAD = true;
+		end;
+	end;
+	local I;
+	pcall(function()
+		I = readfile("UILib.lua");
+	end);
+	if type(I) ~= "string" or #I < 1000 then
+		I = nil;
+		pcall(function()
+			I = game:HttpGet("https://raw.githubusercontent.com/Shoobie-code/linoria-inspired/refs/heads/main/main");
+		end);
+		if type(I) == "string" and #I > 1000 then
+			pcall(writefile, "UILib.lua", I);
+		else
+			I = nil;
+		end;
+	end;
+	if type(I) == "string" then
+		pcall(function()
+			(loadstring(I))();
+		end);
+	end;
+	_G.UI_RELOAD = nil;
+	j = _G.UILib;
+end;
+if not j then
+	notify("UILib not found in workspace", "Slayers 2", 6);
+	return;
+end;
+local i = {
+		Running = true,
+		pool = {},
+		drawConn = nil,
+		tickConn = nil,
+		win = nil,
+		Mode = "off",
+		FarmKind = "boss",
+		CrowSlot = 2,
+		WeapSlot = 1,
+		crow = nil,
+		SelectedMob = "Bandit",
+		SelectedBoss = { Akazo = true },
+		SelectedQuest = "[Auto-Detect Active Quest]",
+		QuestSel = { "[Auto-Detect Active Quest]" },
+		Stance = "Under Target",
+		Offset = 3.8,
+		AttackDelay = .3,
+		Retarget = 1.0,
+		HealthGuard = false,
+		GuardPct = .45,
+		Smooth = true,
+		MoveSpeed = 60,
+		WarpAbove = 40,
+		camT = 0,
+		AimLock = true,
+		SkillGap = .3,
+		atkCount = 0,
+		SkipBlocking = true,
+		Reach = 18,
+		blockedT = 0,
+		AimGain = .55,
+		rmbDown = false,
+		HoldT = 2.0,
+		SettleT = .6,
+		AutoLoot = true,
+		AutoSouls = true,
+		LootRange = 300,
+		LootWait = 5,
+		lootPhase = nil,
+		LootBoss = true,
+		RouteTap = .05,
+		collect = nil,
+		pendingLoot = nil,
+		seen = {},
+		seenDirty = false,
+		seenT = 0,
+		chestTap = {},
+		clearKey = nil,
+		warnedFocus = 0,
+		AutoTrain = false,
+		NoClip = false,
+		AntiAFK = false,
+		EspMobs = false,
+		EspBosses = false,
+		EspChests = false,
+		EspCrystals = false,
+		EspLily = false,
+		EspHorses = false,
+		EspLevers = false,
+		EspMuzan = false,
+		EspFruits = false,
+		QuestPick = "normal",
+		QuestGap = 30,
+		AutoFish = false,
+		FishLead = .12,
+		FishPause = 1.0,
+		FishTimeout = 30,
+		BossOrder = { "Akazo" },
+		npcPosCache = {},
+		acceptAt = nil,
+		EspDist = 1200,
+		PanicVK = 113,
+	};
+_G.Slayers2 = i;
+local r = {};
+r.Presets = {
+		Combat = true,
+		["Regular Katana"] = true,
+		["Insect Katana"] = true,
+		["Sound Katanas"] = true,
+		Scythe = true,
+		["Bladed Wagasa"] = true,
+		Gauntlet = true,
+		Soryu = true,
+		["Tai Chi"] = true,
+		Spear = true,
+		Tanto = true,
+		["War Fans"] = true,
+		Shotgun = true,
+		Sickles = true,
+		Claws = true,
+		["Blood Manipulation"] = true,
+		Cutlass = true,
+		["Axe and Mace"] = true,
+		Reaper = true,
+		["Obi Manipulation"] = true,
+		Tamari = true,
+		Dream = true,
+	};
+do
+	local x = I:FindFirstChild("Assets");
+	x = x and x:FindFirstChild("Animations");
+	for x, I in ipairs(x and x:GetChildren() or {}) do
+		local y = string.match(I.Name, "^(.*)_Combat_Anims$");
+		if y and y ~= "" then
+			r.Presets[y] = true;
+		end;
+	end;
+end;
+r.StyleWords = {
+		cleaver = "Sound Katanas",
+		fan = "War Fans",
+		sickle = "Sickles",
+		claw = "Claws",
+		wagasa = "Bladed Wagasa",
+	};
+r.StyleMap = {};
+do
+	local x = {
+			Gauntlets = "Gauntlet",
+			Warfans = "War Fans",
+			["Axe & Mace"] = "Axe and Mace",
+			Katanas = "Regular Katana",
+		};
+	local function y(I)
+		local y = string.gsub(I, "%s*Category%s*$", "");
+		y = string.gsub(y, "^%s*(.-)%s*$", "%1");
+		y = x[y] or y;
+		if r.Presets[y] then
+			return y;
+		end;
+		return nil;
+	end;
+	local G = I:FindFirstChild("ItemAssets");
+	G = G and G:FindFirstChild("Tools");
+	for x, I in ipairs(G and G:GetChildren() or {}) do
+		local G = y(I.Name);
+		for x, I in ipairs(I:GetChildren()) do
+			local y = I.Name;
+			local Z = string.lower(y);
+			local j;
+			if r.Presets[y] then
+				j = y;
+			elseif string.find(Z, "sound", 1, true) or string.find(Z, "cleaver", 1, true) then
+				j = "Sound Katanas";
+			elseif string.find(Z, "insect", 1, true) then
+				j = "Insect Katana";
+			else
+				local x = string.match(y, "[-]%s*(.+)$");
+				local I = string.match(y, "^(.+)%s+Orb$");
+				if x and r.Presets[x] then
+					j = x;
+				elseif I and r.Presets[I] then
+					j = I;
+				else
+					j = G;
+				end;
+			end;
+			if j and r.Presets[j] then
+				r.StyleMap[Z] = j;
+			end;
+		end;
+	end;
+end;
+do
+	local x = I:FindFirstChild("CAM");
+	x = x and x:FindFirstChild("Global");
+	x = x and x:FindFirstChild("Powers");
+	x = x and x:FindFirstChild("FightingStyles");
+	if x then
+		for x, I in ipairs(x:GetChildren()) do
+			r.Presets[I.Name] = true;
+		end;
+	end;
+end;
+r.Spawns = {
+		Bandit = Vector3.new(-287, 1224, -1008),
+		Zuko = Vector3.new(-450, 1245, -950),
+		Civilian = Vector3.new(-650, 1245, -1100),
+		["*Civilian*"] = Vector3.new(-650, 1245, -1100),
+		Mizunoto = Vector3.new(-888, 965, -26),
+		["Beast Born Demon"] = Vector3.new(-850, 970, -120),
+		["Blood Hounded Demon"] = Vector3.new(812.4, 826.0, 972.7),
+		["Bear Cub"] = Vector3.new(540, 1122, -1023),
+		["Mother Bear"] = Vector3.new(550, 1122, -1035),
+		Hoyuzo = Vector3.new(480, 1122, -1010),
+		["Hoyuzo Subordinate"] = Vector3.new(470, 1122, -1010),
+		Kaiden = Vector3.new(510, 1122, -1000),
+		["Kaiden Subordinate"] = Vector3.new(500, 1122, -1000),
+		["Lesser Demon"] = Vector3.new(-715, 220, 456),
+		["Greater Demon"] = Vector3.new(-650, 235, 380),
+		["High Demon"] = Vector3.new(518, 1223, -1785),
+		["Ice Profound Demon"] = Vector3.new(312, 1223, -1778),
+		["Fire Profound Demon"] = Vector3.new(230, 1254, -1983),
+		["Kanoe Demon Slayer"] = Vector3.new(373, 1286, -2031),
+		["Mizunoe Demon Slayer"] = Vector3.new(-2626.7, 284, -191.2),
+		Fujiko = Vector3.new(-2626.7, 284, -191.2),
+		Akazo = Vector3.new(-1132.6, 1381.1, -1742.5),
+		Gyutai = Vector3.new(-263.1, 1043.5, -1150.5),
+		Datai = Vector3.new(-163.2, 1043.5, -1136.9),
+		Saneri = Vector3.new(-375.2, 1093.6, -438.8),
+		Obari = Vector3.new(742.85, 1124.07, -1018.62),
+		["Serpent Trainee"] = Vector3.new(-270.3, 1292.49, -1533.8),
+		Reaper = Vector3.new(99.86, 1043.49, -576.31),
+		Yahari = Vector3.new(823.2, 1019.1, -640.0),
+		Sumari = Vector3.new(395.4, 1018.5, -622.7),
+		Nezura = Vector3.new(-1456.63, 278.45, 927.69),
+		Muzan = Vector3.new(2466.37, 1079.63, 2334.54),
+	};
+r.Mobs = {
+		"All Regular Mobs",
+		"Bandit",
+		"Civilian",
+		"*Civilian*",
+		"Mizunoto",
+		"Village Spy",
+		"Karu Village Bandit",
+		"Beast Born Demon",
+		"Blood Hounded Demon",
+		"Lesser Demon",
+		"Greater Demon",
+		"High Demon",
+		"Ice Profound Demon",
+		"Fire Profound Demon",
+		"Rogue Demon",
+		"Lost",
+		"Iceveil Road Pikeman",
+		"Iceveil Road Bandit",
+		"Iceveil Road Marauder",
+		"Bear Cub",
+		"Mother Bear",
+		"Hoyuzo Subordinate",
+		"Kaiden Subordinate",
+		"Kanoe Demon Slayer",
+		"Mizunoe Demon Slayer",
+		"Cache Lancer",
+		"Cache Prowler",
+		"Grove Raider",
+		"Lancer Captain",
+		"Prowler Captain",
+		"Raid Captain",
+		"Serpent Trainee",
+		"Water Trainee",
+		"Thunder Trainee",
+		"Flame Trainee",
+		"Wind Trainee",
+		"Stone Trainee",
+		"Insect Trainee",
+		"Sound Trainee",
+		"Soryu Trainee",
+		"Tai Chi Trainee",
+		"Reaper Trainee",
+	};
+r.Bosses = {
+		"All Bosses",
+		"Akazo",
+		"Gyutai",
+		"Datai",
+		"Domae",
+		"Reaper",
+		"Nezura",
+		"Yahari",
+		"Sumari",
+		"Enru",
+		"Yeti Demon",
+		"Small Yeti",
+		"Hand Demon",
+		"Zuko",
+		"Kaiden",
+		"Hoyuzo",
+		"Mother Bear",
+		"Fujiko",
+		"Shinora",
+		"Obari",
+		"Saneri",
+		"Giyen",
+		"Tengai",
+		"Zentaro",
+		"Gyorei",
+		"Rengu",
+		"Muzan",
+	};
+r.BossNames = {};
+for x = 1, #r.Bosses, 1 do
+	r.BossNames[string.lower(r.Bosses[x])] = true;
+end;
+r.BossNames["all bosses"] = nil;
+r.Zones = {
+		["Windy Peak (Village)"] = Vector3.new(-650, 1245, -1100),
+		["Windy Peak (Bandit Camp)"] = Vector3.new(-287, 1224, -1008),
+		["Mistfall Harbor (Docks)"] = Vector3.new(-888, 965, -26),
+		["Mistfall Harbor (Crystal)"] = Vector3.new(135.8, 873.7, 734.1),
+		["Bamboo Grove (Bear Woods)"] = Vector3.new(540, 1122, -1023),
+		["Bamboo Grove Sanctuary"] = Vector3.new(657.4, 1021.2, 139.7),
+		["Butterfly Estate"] = Vector3.new(-1809.3, 311.8, -101.1),
+		["Hidden Mist Village"] = Vector3.new(1793.08, 661.3, -231.72),
+		["Iceveil Valley"] = Vector3.new(485.3, 1222.9, -1813.4),
+		["Iceveil Settlement"] = Vector3.new(-154.62, 1351.5, -2556.21),
+		["Final Selection Plains"] = Vector3.new(-2626.7, 284, -191.2),
+		["Workout Grounds"] = Vector3.new(-311.6, 1071.6, -579.6),
+	};
+r.BossTP = {
+		Akazo = Vector3.new(-1132.6, 1381.1, -1742.5),
+		Gyutai = Vector3.new(-263.1, 1043.5, -1150.5),
+		Datai = Vector3.new(-163.2, 1043.5, -1136.9),
+		Saneri = Vector3.new(-383.03, 1096.07, -405.25),
+		Zuko = Vector3.new(-288.51, 1226.7, -1027.99),
+		Kaiden = Vector3.new(558.56, 1148.67, -1322.1),
+		Hoyuzo = Vector3.new(758.57, 1003.51, -1406.92),
+		["Mother Bear"] = Vector3.new(550, 1122, -1035),
+		Fujiko = Vector3.new(-2626.7, 284, -191.2),
+		["Hand Demon"] = Vector3.new(-2626.7, 284, -191.2),
+		["Yeti Demon"] = Vector3.new(485.3, 1222.9, -1813.4),
+		["Small Yeti"] = Vector3.new(485.3, 1222.9, -1813.4),
+		Domae = Vector3.new(-297.34, 1352.99, -3448.14),
+		Reaper = Vector3.new(104.73, 1045.5, -579.95),
+		Enru = Vector3.new(819.73, 798.15, 557.06),
+		Shinora = Vector3.new(-463.59, 967.0, -7.85),
+		Obari = Vector3.new(742.85, 1124.07, -1018.62),
+		Giyen = Vector3.new(405.07, 1020.5, -74.58),
+		Tengai = Vector3.new(-132.74, 1351.48, -2616.27),
+		Zentaro = Vector3.new(1329.34, 823.5, -1022.86),
+		Gyorei = Vector3.new(2569.72, 1091.5, -730.2),
+		Nezura = Vector3.new(-1456.63, 278.45, 927.69),
+		Yahari = Vector3.new(809.68, 1021.01, -632.32),
+		Sumari = Vector3.new(400.17, 1020.5, -596.86),
+		["Serpent Trainee"] = Vector3.new(-270.3, 1292.49, -1533.8),
+		["Reaper Trainee Kuzan"] = Vector3.new(-1231.91, 1376.61, -3013.45),
+		Muzan = Vector3.new(2466.37, 1079.63, 2334.54),
+	};
+r.Trainers = {
+		["Fisherman Jeso"] = Vector3.new(-192.0, 807.0, 602.7),
+		["Alchemist Meku"] = Vector3.new(-138.1, 798.9, 518.7),
+		["Dock Master Sofen"] = Vector3.new(-160.8, 798.8, 703.3),
+		["Estate Worker Niko"] = Vector3.new(341.1, 939.0, 580.6),
+		Ginzo = Vector3.new(273.8, 944.0, 528.2),
+		Elara = Vector3.new(427.8, 943.6, 507.4),
+		Jugg = Vector3.new(487.7, 876.5, 1007.8),
+		Liv = Vector3.new(657.4, 1021.2, 139.7),
+		["Serpent Trainer Obari"] = Vector3.new(37.0, 1307.5, -1179.5),
+		["Soryu Trainee Goki"] = Vector3.new(-424.5, 289.1, 540.4),
+		["Lamplighter Isamu"] = Vector3.new(1082.2, 1425.7, -749.0),
+	};
+r.Stations = {
+		"Boulder Push",
+		"Squat Rack",
+		"Aim Training",
+		"Boulder Split",
+		"Cup Game",
+		"Meditation",
+		"Pushups",
+		"Parkour Dungeon",
+	};
+r.Deliver = {
+		["Deliver Niko\'s Supply Box"] = { opt = "Ill deliver the supply box(Lv 70)", tasks = { ["Deliver to Shiori"] = { npc = "Shiori", pos = Vector3.new(-1814.34, 311.8, -101.07), answer = "Niko sent it up" }, ["Report back to Niko"] = { npc = "Estate Worker Niko", pos = Vector3.new(341.07, 938.91, 580.59), answer = "Shiori says thank you" } } },
+		["Restock the Infirmary"] = { opt = "Ill restock the infirmary(Lv 70)", tasks = { ["Return to Shiori"] = { npc = "Shiori", pos = Vector3.new(-1814.34, 311.8, -101.07), answer = "The infirmary is stocked" } } },
+		["The Full Pantry"] = { opt = "Ill stock the reserves(Lv 75)", tasks = { ["Return to Shiori"] = { npc = "Shiori", pos = Vector3.new(-1814.34, 311.8, -101.07), answer = "The stores are stocked" } } },
+		["Locate Ren\'s Lost Nichirin"] = { opt = "Ill look for your blade(Lv 75)", tasks = { ["Return to Ren"] = { npc = "Ren", pos = Vector3.new(-1795, 311.8, -85) } } },
+		["The Morning Haul"] = { opt = "Ill fill your crates(Lv 45)", tasks = { ["Return to Runo"] = { npc = "Angler Runo", pos = Vector3.new(-561.1, 796.25, 683.7) } } },
+		["The Good Catch"] = { opt = "Ill land the good catch(Lv 60)", tasks = { ["Return to Runo"] = { npc = "Angler Runo", pos = Vector3.new(-561.1, 796.25, 683.7) } } },
+		["Retrieve Ginzo\'s Jewelry Box"] = { opt = "Ill find the jewelry box(Lv 45)", tasks = { ["Return to Ginzo"] = { npc = "Ginzo", pos = Vector3.new(273.8, 941.5, 528.19) } } },
+		["Earn a Fishing Permit"] = { opt = "Ill find the permit stamp(Lv 45)", tasks = { ["Return to Sofen"] = { npc = "Dock Master Sofen", pos = Vector3.new(-160.81, 796.25, 703.29) } } },
+		["Acquire Bear Meat"] = { opt = "Ill restock the pantry(Lv 10)", tasks = { ["Bring bear meat back to Lucy"] = { npc = "Lucy", pos = Vector3.new(-615.5, 1258.5, -1177.5), answer = "Hand over the meat" } } },
+		["Deliver Package to Elara"] = { opt = "Ill deliver the package", tasks = { ["Package delivered"] = { npc = "Elara", pos = Vector3.new(427.82, 941.0, 507.45) } } },
+		["Report to Noote"] = { opt = "Ill bring him the notes", tasks = { ["Speak with Noote"] = { npc = "Noote", pos = Vector3.new(-515.5, 1243.2, -1251.2) } } },
+		["Deliver the Coded Letter"] = { opt = "Ill get this letter delivered", tasks = { ["Deliver the Letter to Chaka"] = { npc = "Chaka", pos = Vector3.new(471, 1146, -1260) } } },
+	};
+r.DeliverGivers = { { Npc = "Estate Worker Niko", Pos = Vector3.new(341.1, 938.9, 580.6), QuestOption = "Ill deliver the supply box(Lv 70)" }, { Npc = "MoldySugar", Pos = Vector3.new(-701.8, 1243.3, -982.7), QuestOption = "Ill deliver the package" }, { Npc = "Noote", Pos = Vector3.new(-515.5, 1243.2, -1251.2), QuestOption = "Ill get this letter delivered" } };
+r.Quests = {
+		["[Auto-Detect Active Quest]"] = { Auto = true },
+		["[Auto] All delivery quests"] = { Auto = true, AutoDeliver = true },
+		["[Windy Peak] Krue: 3 Bandits"] = {
+			Npc = "Krue",
+			Pos = Vector3.new(-425.9, 1240.7, -952.5),
+			Target = "Bandit",
+			QuestOption = "Ill take 3 bandits",
+		},
+		["[Windy Peak] Krue: Bandit Leader Zuko"] = {
+			Npc = "Krue",
+			Pos = Vector3.new(-425.9, 1240.7, -952.5),
+			Target = "Zuko",
+			BossOption = "Ill take the bandit boss(Lv 7)",
+		},
+		["[Windy Peak] Kazu: Village Spies"] = {
+			Npc = "Kazu",
+			Pos = Vector3.new(-626, 1242.5, -1138),
+			Target = "*Civilian*",
+			Alt = "Village Spy",
+			QuestOption = "Ill help clear them out",
+		},
+		["[Windy Peak] Kazu: Notes to Noote"] = { Npc = "Kazu", Pos = Vector3.new(-626, 1242.5, -1138), QuestOption = "Ill bring him the notes" },
+		["[Windy Peak] Lucy: Bear Meat"] = {
+			Npc = "Lucy",
+			Pos = Vector3.new(-615.5, 1260.2, -1177.5),
+			Target = "Mother Bear",
+			Alt = "Bear Cub",
+		},
+		["[Mistfall] Niko: Eliminate Mizunoto"] = { Npc = "Estate Worker Niko", Pos = Vector3.new(341.1, 938.0, 581.9), Target = "Mizunoto" },
+		["[Mistfall] Niko: 5 Broken Blades"] = { Npc = "Estate Worker Niko", Pos = Vector3.new(341.1, 938.0, 581.9), Target = "Mizunoto" },
+		["[Mistfall] Ginzo: Lost Jewelry Box"] = { Npc = "Ginzo", Pos = Vector3.new(273.8, 944.0, 528.2), Target = "Mizunoto" },
+		["[Mistfall] Jugg: Purge Dreamfall Hollow"] = { Npc = "Jugg", Pos = Vector3.new(487.7, 876.5, 1007.8), Target = "Blood Hounded Demon" },
+		["[Bamboo] Betty: Betty\'s Gemstone"] = { Npc = "Betty", Pos = Vector3.new(714.0, 1125.1, -808.0), QuestOption = "Ill look for it(Lv 10)" },
+		["[Bamboo] Wagwan: Hoyuzo\'s guard"] = {
+			Npc = "Wagwan",
+			Pos = Vector3.new(723.76, 1019.2, -801.98),
+			Target = "Hoyuzo Subordinate",
+			QuestOption = "I will clear out his guards(Lv 40)",
+			BossOption = "I will take care of Hoyuzo(Lv 50)",
+			BossTarget = "Hoyuzo",
+		},
+		["[Bamboo] Liv: Lucky Penny / coins"] = {
+			Npc = "Liv",
+			Pos = Vector3.new(657.4, 1021.2, 139.7),
+			QuestOption = "Ill look for the penny(Lv 14)",
+			BossOption = "Ill find the coins(Lv 21)",
+		},
+		["[Hidden Mist] Togane: the forge"] = { Npc = "Blacksmith Togane", Pos = Vector3.new(1793.08, 661.3, -231.72), QuestOption = "Ill find the forge(Lv 65)" },
+		["[Bamboo] Tom: Wood & Bamboo"] = {
+			Npc = "Tom",
+			Pos = Vector3.new(508.5, 1124.3, -970.5),
+			Target = "Bear Cub",
+			Alt = "Mother Bear",
+			QuestOption = "Ill drive the bears back(Lv 10)",
+			BossOption = "Ill fell the Mother Bear(Lv 18)",
+			BossTarget = "Mother Bear",
+		},
+		["[Bamboo] Chaka: Kaiden and the bandits"] = {
+			Npc = "Chaka",
+			Pos = Vector3.new(471, 1148.5, -1260),
+			Target = "Kaiden Subordinate",
+			QuestOption = "Ill clear out his subordinates(Lv 26)",
+			BossOption = "Ill deal with Kaiden(Lv 34)",
+			BossTarget = "Kaiden",
+		},
+		["[Butterfly] Shiori: Restock Infirmary"] = {
+			Npc = "Shiori",
+			Pos = Vector3.new(-1814.3, 311.8, -101.1),
+			Target = "Lesser Demon",
+			Alt = "Greater Demon",
+			QuestOption = "Ill restock the infirmary(Lv 70)",
+			BossOption = "Ill stock the reserves(Lv 75)",
+		},
+		["[Butterfly] Goro: Lesser / Greater Demons"] = {
+			Npc = "Demon Slayer Goro",
+			Pos = Vector3.new(-871.97, 237.25, 318.47),
+			Target = "Lesser Demon",
+			QuestOption = "Ill thin them out(Lv 75)",
+			BossOption = "Ill go up after the greater ones(Lv 83)",
+			BossTarget = "Greater Demon",
+		},
+		["[Butterfly] Ren: Lost Nichirin"] = {
+			Npc = "Ren",
+			Pos = Vector3.new(-1795, 311.8, -85),
+			Target = "Greater Demon",
+			Alt = "Lesser Demon",
+			QuestOption = "Ill look for your blade(Lv 75)",
+		},
+		["[Mistfall] Niko: Supply Box (delivery)"] = { Npc = "Estate Worker Niko", Pos = Vector3.new(341.1, 938.9, 580.6), QuestOption = "Ill deliver the supply box(Lv 70)" },
+		["[Windy Peak] MoldySugar: Package (delivery)"] = { Npc = "MoldySugar", Pos = Vector3.new(-701.8, 1243.3, -982.7), QuestOption = "Ill deliver the package" },
+		["[Windy Peak] Noote: Coded Letter (delivery)"] = { Npc = "Noote", Pos = Vector3.new(-515.5, 1243.2, -1251.2), QuestOption = "Ill get this letter delivered" },
+		["[Iceveil] Tomoi: Ice Demons"] = {
+			Npc = "Wounded Slayer Tomoi",
+			Pos = Vector3.new(485.3, 1222.9, -1813.4),
+			Target = "Ice Profound Demon",
+			Alt = "High Demon",
+		},
+		["[Iceveil] Tomoi: Fire Demons"] = {
+			Npc = "Wounded Slayer Tomoi",
+			Pos = Vector3.new(485.3, 1222.9, -1813.4),
+			Target = "Fire Profound Demon",
+			Alt = "High Demon",
+		},
+		["[Final Selection] Exam"] = {
+			Npc = "Demon Mokuro",
+			Pos = Vector3.new(-2626.7, 284, -191.2),
+			Target = "Mizunoe Demon Slayer",
+			Alt = "Fujiko",
+		},
+		["[Demon Only] Mokuro: Mizunoto slayer"] = {
+			Npc = "Demon Mokuro",
+			Pos = Vector3.new(-2626.7, 284, -191.2),
+			Target = "Mizunoto Demon Slayer",
+			BossOption = "Ill break their watch(Lv 75)",
+		},
+	};
+local Y = {};
+i.F = Y;
+Y.remote = nil;
+do
+	local x = I:FindFirstChild("Communication");
+	local y = x and x:FindFirstChild("ServerAndClient");
+	local G = y and y:FindFirstChild("Signals");
+	local Z = G and G:FindFirstChild("SignalEvent");
+	Y.remote = Z and Z:FindFirstChild("Event");
+end;
+function Y.logErr(x, I)
+	local y = os.date("%H:%M:%S") .. (" " .. (tostring(x) .. (": " .. tostring(I))));
+	warn("[Slayers 2] " .. y);
+	if (os.clock() - ((i.errT or 0))) < 1 then
+		return;
+	end;
+	i.errT = os.clock();
+	pcall(function()
+		appendfile("slayers2_errors.txt", y .. string.char(10));
+	end);
+end;
+local e = {};
+function Y.defer(x, I, y)
+	if type(x) ~= "function" then
+		return;
+	end;
+	e[#e + 1] = { x, I, y };
+end;
+function Y.deferRun()
+	if #e > 0 then
+		local x = e;
+		e = {};
+		if i.Running then
+			for I = 1, #x, 1 do
+				local y, G = pcall(x[I][1], x[I][2], x[I][3]);
+				if not y then
+					Y.logErr("ui", G);
+				end;
+			end;
+		end;
+	end;
+	if i.syncWant then
+		i.syncWant = nil;
+		local x, I = pcall(Y.syncNow);
+		if not x then
+			Y.logErr("sync", I);
+		end;
+	end;
+end;
+function Y.guard(x)
+	if type(x) ~= "table" and type(x) ~= "userdata" then
+		return x;
+	end;
+	return setmetatable({}, { __index = function(I, y)
+			local G = x[y];
+			if type(G) ~= "function" then
+				return G;
+			end;
+			return function(I, y, ...)
+				if type(y) == "table" and type(y.callback) == "function" then
+					local x = y.callback;
+					y.callback = function(I, y)
+							Y.defer(x, I, y);
+						end;
+				end;
+				return G(x, y, ...);
+			end;
+		end });
+end;
+local C = {};
+function Y.mark(x)
+	i.where = x;
+	if i.markBurst then
+		local I = os.clock();
+		if I < i.markBurst then
+			pcall(function()
+				appendfile("slayers2_trail.txt", "! " .. (tostring(x) .. string.char(10)));
+			end);
+		else
+			i.markBurst = nil;
+			pcall(function()
+				appendfile("slayers2_trail.txt", "-- burst over" .. string.char(10));
+			end);
+		end;
+	end;
+	local I = C[#C];
+	if I and I.w == x then
+		I.n = I.n + 1;
+	else
+		C[#C + 1] = { w = x, n = 1 };
+		if #C > 60 then
+			table.remove(C, 1);
+		end;
+	end;
+end;
+function Y.markWrite(x)
+	if #C == 0 then
+		return;
+	end;
+	if x - ((i.markT or 0)) < .2 then
+		return;
+	end;
+	i.markT = x;
+	local I = {};
+	for x = 1, #C, 1 do
+		local y = C[x];
+		I[#I + 1] = y.n > 1 and (y.w .. (" x" .. y.n)) or y.w;
+	end;
+	C = {};
+	local y = os.date("%H:%M:%S") .. (" " .. table.concat(I, " > "));
+	pcall(function()
+		appendfile("slayers2_trail.txt", y .. string.char(10));
+	end);
+end;
+function Y.markPrev()
+	local x;
+	pcall(function()
+		if isfile("slayers2_trail.txt") then
+			x = readfile("slayers2_trail.txt");
+		end;
+	end);
+	if type(x) == "string" and #x > 0 then
+		local I = x;
+		for x in string.gmatch(x, "[^" .. (string.char(10) .. "]+")) do
+			if #x > 0 then
+				I = x;
+			end;
+		end;
+		pcall(function()
+			appendfile("slayers2_errors.txt", os.date("%H:%M:%S") .. (" previous run ended at: " .. (I .. string.char(10))));
+		end);
+		warn("[Slayers 2] previous run ended at: " .. I);
+	end;
+	pcall(function()
+		delfile("slayers2_trail.txt");
+	end);
+	pcall(function()
+		delfile("slayers2_where.txt");
+	end);
+end;
+function Y.notify(x, I)
+	local y, G = tostring(x), I or 3;
+	Y.defer(function()
+		pcall(function()
+			j:Notify({ title = "Slayers 2", text = y, duration = G });
+		end);
+	end);
+end;
+function Y.char()
+	local x = Z.Character;
+	if not x then
+		return nil, nil, nil;
+	end;
+	local I = x:FindFirstChild("HumanoidRootPart");
+	local y = x:FindFirstChildOfClass("Humanoid");
+	if not I or not y then
+		return nil, nil, nil;
+	end;
+	return x, I, y;
+end;
+local v = .25;
+function Y.addr(x)
+	local I, y = pcall(function()
+			return x.Address;
+		end);
+	if I and type(y) == "number" then
+		return y;
+	end;
+	return nil;
+end;
+function Y.attached(x, I)
+	if x == nil then
+		return false;
+	end;
+	local y, G = pcall(function()
+			local y = x.Parent;
+			if y == nil then
+				return false;
+			end;
+			if I == nil then
+				return true;
+			end;
+			return y.Address == I;
+		end);
+	return y and G == true;
+end;
+function Y.npcAlive(x, I)
+	if not x or x.dead or x.stale then
+		return false;
+	end;
+	local y = os.clock();
+	local G = y - ((x.chkT or 0));
+	if G < .005 then
+		return true;
+	end;
+	if G > ((I or v)) then
+		x.stale = true;
+		return false;
+	end;
+	if Y.attached(x.Model, x.PAddr) then
+		x.chkT = y;
+		return true;
+	end;
+	x.dead = true;
+	return false;
+end;
+function Y.curAlive(x)
+	if not x or x.dead then
+		return false;
+	end;
+	if not ((x.Src and (x.Region and (x.IAddr and x.MAddr)))) then
+		return Y.npcAlive(x);
+	end;
+	local I = os.clock();
+	if I - ((x.freshT or 0)) < .005 then
+		return true;
+	end;
+	local y = G:FindFirstChild(x.Src);
+	local Z = y and y:FindFirstChild("Regions");
+	local j = Z and Z:FindFirstChild(x.Region);
+	local i = j and j:FindFirstChild("ActiveNpcs");
+	local r = i and Y.refind(i, x.IAddr);
+	local e = r and (((x.IAddr == x.MAddr) and r or Y.refind(r, x.MAddr)));
+	if not e then
+		x.dead = true;
+		return false;
+	end;
+	x.freshT, x.chkT = I, I;
+	x.Model = e;
+	local C = e:FindFirstChild("HumanoidRootPart");
+	if C then
+		x.Root = C;
+	end;
+	local v = e:FindFirstChildOfClass("Humanoid");
+	if v then
+		x.Hum = v;
+	end;
+	x.Head = e:FindFirstChild("Head") or false;
+	return true;
+end;
+local U = {};
+function Y.refreshPlayers()
+	U = {};
+	local I = x:GetPlayers();
+	for x = 1, #I, 1 do
+		U[I[x].Name] = true;
+	end;
+end;
+Y.refreshPlayers();
+function Y.isBoss(x)
+	if x:FindFirstChild("BossInfo") then
+		return true;
+	end;
+	return r.BossNames[string.lower(x.Name)] == true;
+end;
+function Y.scan(x, I, y)
+	Y.mark("scan/walk");
+	local Z = {};
+	local j = nil;
+	if type(x) == "table" then
+		j = x;
+		x = nil;
+	end;
+	local i = x and string.lower(x) or nil;
+	local r = (not j) and (((x == nil) or (x == "All Regular Mobs") or (x == "All Bosses")));
+	local e = { G:FindFirstChild("Humanoids"), G:FindFirstChild("Debree") };
+	for x = 1, #e, 1 do
+		local G = e[x] and e[x]:FindFirstChild("Regions");
+		if G then
+			local C = G:GetChildren();
+			for G = 1, #C, 1 do
+				local v = C[G]:FindFirstChild("ActiveNpcs");
+				if v then
+					local F = v:GetChildren();
+					for v = 1, #F, 1 do
+						local S = F[v];
+						local h = S.Name;
+						if not U[h] then
+							local v = false;
+							if j then
+								v = j[string.lower(h)] == true;
+							elseif r then
+								v = true;
+							elseif i then
+								local x = string.lower(h);
+								if y then
+									v = (x == i);
+								else
+									v = (x == i) or (string.find(x, i, 1, true) ~= nil);
+								end;
+							end;
+							if v then
+								local x = Y.isBoss(S);
+								if y and (I and not x) then
+									v = false;
+								end;
+							end;
+							if v then
+								local y = Y.isBoss(S);
+								if I == nil or not r or I == y then
+									local I = S:FindFirstChild(h) or S:FindFirstChildOfClass("Model");
+									if I then
+										local j = I:FindFirstChildOfClass("Humanoid");
+										local r = I:FindFirstChild("HumanoidRootPart");
+										if j and (r and j.Health > 0) then
+											local v = {
+													Model = I,
+													Hum = j,
+													Root = r,
+													Name = h,
+													Boss = y,
+												};
+											v.exactName = i ~= nil and string.lower(h) == i;
+											v.PAddr = Y.addr(S);
+											v.IAddr = v.PAddr;
+											v.MAddr = Y.addr(I);
+											v.Src = e[x] and e[x].Name or nil;
+											v.Region = C[G].Name;
+											v.chkT = os.clock();
+											Z[#Z + 1] = v;
+											pcall(function()
+												Y.noteSeen(h, r.Position);
+											end);
+										end;
+									end;
+								end;
+							end;
+						end;
+					end;
+				end;
+			end;
+		end;
+	end;
+	Y.mark("scan/done");
+	if i and not y then
+		local x = {};
+		for I = 1, #Z, 1 do
+			if Z[I].exactName then
+				x[#x + 1] = Z[I];
+			end;
+		end;
+		if #x > 0 then
+			return x;
+		end;
+	end;
+	return Z;
+end;
+local F = { key = "", t = -99, list = {} };
+function Y.setKey(x)
+	local I = {};
+	for x in pairs(x) do
+		I[#I + 1] = x;
+	end;
+	table.sort(I);
+	return table.concat(I, "|");
+end;
+function Y.scanCached(x, I, y, G, Z)
+	local j;
+	if type(x) == "table" then
+		j = Y.setKey(x);
+	else
+		j = tostring(x);
+	end;
+	j = j .. (tostring(I) .. tostring(Z));
+	if F.key == j and (y - F.t) < ((G or 1.0)) then
+		return F.list;
+	end;
+	F.key = j;
+	F.t = y;
+	F.list = Y.scan(x, I, Z);
+	return F.list;
+end;
+function Y.dropCache()
+	F.key = "";
+	F.t = -99;
+end;
+function Y.bossSet()
+	local x = i.SelectedBoss;
+	local I = false;
+	local y, G = {}, 0;
+	if type(x) == "string" then
+		if x == "All Bosses" then
+			I = true;
+		else
+			y[string.lower(x)] = true;
+			G = 1;
+		end;
+	else
+		for x, Z in pairs(x or {}) do
+			if Z then
+				if x == "All Bosses" then
+					I = true;
+				else
+					y[string.lower(x)] = true;
+					G = G + 1;
+				end;
+			end;
+		end;
+	end;
+	if I then
+		y, G = {}, 0;
+		for x = 1, #r.Bosses, 1 do
+			local I = r.Bosses[x];
+			if I ~= "All Bosses" then
+				y[string.lower(I)] = true;
+				G = G + 1;
+			end;
+		end;
+	end;
+	if G == 0 then
+		return nil, false;
+	end;
+	return y, I;
+end;
+function Y.updateBossOrder(x)
+	local I = {};
+	if type(x) == "table" then
+		for x, y in pairs(x) do
+			if y then
+				I[x] = true;
+			end;
+		end;
+	elseif type(x) == "string" then
+		I[x] = true;
+	end;
+	local y = {};
+	if I["All Bosses"] then
+		for x, I in ipairs(r.Bosses) do
+			if I ~= "All Bosses" then
+				y[#y + 1] = I;
+			end;
+		end;
+	else
+		for x, G in ipairs(i.BossOrder or {}) do
+			if I[G] then
+				y[#y + 1] = G;
+				I[G] = nil;
+			end;
+		end;
+		for x, G in ipairs(r.Bosses) do
+			if I[G] then
+				y[#y + 1] = G;
+			end;
+		end;
+	end;
+	i.BossOrder = y;
+	i.spawnIdx = 0;
+end;
+function Y.bossLabel()
+	local x, I = Y.bossSet();
+	if I then
+		return "all bosses";
+	end;
+	if not x then
+		return "none selected";
+	end;
+	local y = {};
+	for x in pairs(x) do
+		y[#y + 1] = x;
+	end;
+	table.sort(y);
+	return table.concat(y, ", ");
+end;
+r.SharedOK = { ["-2627,-192"] = true, ["485,-1814"] = true };
+local S = {};
+do
+	local x = {};
+	for I, y in ipairs({ r.Spawns, r.BossTP }) do
+		for I, y in pairs(y) do
+			local G = math.floor(y.X) .. ("," .. math.floor(y.Z));
+			x[G] = x[G] or {};
+			x[G][string.lower(I)] = true;
+		end;
+	end;
+	for x, I in pairs(x) do
+		local y = 0;
+		for x in pairs(I) do
+			y = y + 1;
+		end;
+		if y > 1 and not r.SharedOK[x] then
+			for x in pairs(I) do
+				S[x] = true;
+			end;
+		end;
+	end;
+end;
+local function h(x)
+	local I = string.lower(x);
+	local y = i.seen[I];
+	if y then
+		return Vector3.new(y[1], y[2], y[3]);
+	end;
+	if S[I] then
+		return nil;
+	end;
+	for y, G in ipairs({ r.Spawns, r.BossTP }) do
+		local Z = G[x];
+		if Z then
+			return Z;
+		end;
+		for x, y in pairs(G) do
+			if string.lower(x) == I then
+				return y;
+			end;
+		end;
+	end;
+	return nil;
+end;
+function Y.wantSpawn(x)
+	if type(x) ~= "table" then
+		return h(x);
+	end;
+	local I = {};
+	if i.Mode == "boss" and i.BossOrder then
+		for y, G in ipairs(i.BossOrder) do
+			local Z = string.lower(G);
+			if x[Z] and h(Z) then
+				I[#I + 1] = Z;
+			end;
+		end;
+	end;
+	if #I == 0 then
+		for x in pairs(x) do
+			if h(x) then
+				I[#I + 1] = x;
+			end;
+		end;
+		table.sort(I);
+	end;
+	if #I == 0 then
+		return nil;
+	end;
+	i.spawnIdx = ((i.spawnIdx or 0)) % #I + 1;
+	return h(I[i.spawnIdx]);
+end;
+local d = "slayers2_seen.json";
+function Y.seenLoad()
+	local x;
+	if not pcall(function()
+		x = readfile(d);
+	end) or type(x) ~= "string" then
+		return;
+	end;
+	local I, y = pcall(function()
+			return (game:GetService("HttpService")):JSONDecode(x);
+		end);
+	if I and type(y) == "table" then
+		i.seen = y;
+	end;
+end;
+function Y.seenSave(x)
+	if not i.seenDirty then
+		return;
+	end;
+	if x and (x - ((i.seenT or 0))) < 30 then
+		return;
+	end;
+	i.seenT = x or 0;
+	i.seenDirty = false;
+	pcall(function()
+		writefile(d, (game:GetService("HttpService")):JSONEncode(i.seen));
+	end);
+end;
+function Y.noteSeen(x, I)
+	local y = string.lower(x);
+	local G = i.seen[y];
+	if G and (math.abs(G[1] - I.X) < 8 and math.abs(G[3] - I.Z) < 8) then
+		return;
+	end;
+	i.seen[y] = { I.X, I.Y, I.Z };
+	i.seenDirty = true;
+end;
+function Y.nearest(x, I)
+	local y, G = nil, 1000000000.0;
+	for Z = 1, #x, 1 do
+		local j = x[Z];
+		if Y.npcAlive(j, .6) then
+			local x, Z = pcall(function()
+					return j.Root.Position;
+				end);
+			if x and Z then
+				local x = ((Z - I)).Magnitude;
+				if x < G then
+					G = x;
+					y = j;
+				end;
+			end;
+		end;
+	end;
+	return y, G;
+end;
+function Y.tpTo(x, I)
+	local y, G = Y.char();
+	if not G or not x then
+		return false;
+	end;
+	pcall(function()
+        TS:Create(G, TweenInfo.new(0.5), {CFrame = CFrame.new(x.X, x.Y + (I or 2.5), x.Z)}):Play()
+		G.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+	end);
+	return true;
+end;
+function Y.findNamed(x)
+	local I = string.lower(x or "");
+	if I == "" then
+		return nil;
+	end;
+	local y = nil;
+	local Z = { G:FindFirstChild("Humanoids"), G:FindFirstChild("Debree") };
+	for x = 1, #Z, 1 do
+		local G = Z[x] and Z[x]:FindFirstChild("Regions");
+		if G then
+			for x, G in ipairs(G:GetChildren()) do
+				for x, G in ipairs({ G:FindFirstChild("ActiveNpcs"), G:FindFirstChild("StationaryNpcs") }) do
+					for x, G in ipairs(G and G:GetChildren() or {}) do
+						local Z = string.lower(G.Name);
+						local j = (Z == I);
+						if j or (not y and string.find(Z, I, 1, true)) then
+							local x = G:FindFirstChildOfClass("Model") or G;
+							local I = x:FindFirstChild("HumanoidRootPart") or x:FindFirstChildWhichIsA("BasePart");
+							if I then
+								if j then
+									return I.Position;
+								end;
+								y = I.Position;
+							end;
+						end;
+					end;
+				end;
+			end;
+		end;
+	end;
+	return y;
+end;
+function Y.npcPos(x, I, y)
+	local G = i.npcPosCache[x];
+	if G and (I - G.t) < ((y or 2.0)) then
+		return G.pos;
+	end;
+	local Z = Y.findNamed(x);
+	i.npcPosCache[x] = { pos = Z, t = I };
+	return Z;
+end;
+function Y.followNpc(x, I, y)
+	local G, Z = Y.char();
+	local j = Y.npcPos(x, y, .1) or I;
+	local r = i.follow;
+	if r and r.name == x then
+		r.t = y;
+		r.fb = I;
+	else
+		i.follow = { name = x, fb = I, t = y };
+	end;
+	if not Z or not j then
+		return math.huge;
+	end;
+	local e = Z.Position;
+	local C, v = e.X - j.X, e.Z - j.Z;
+	local U = math.sqrt(C * C + v * v);
+	if math.abs(e.Y - j.Y) > 15 then
+		return math.max(U, 99);
+	end;
+	return U;
+end;
+function Y.followStep(x)
+	local I = i.follow;
+	if not I then
+		return;
+	end;
+	if x - I.t > .6 then
+		i.follow = nil;
+		return;
+	end;
+	local y, G = Y.char();
+	local Z = Y.npcPos(I.name, x, .1) or I.fb;
+	if not G or not Z then
+		return;
+	end;
+	if I.lastPos and I.lastPos ~= Z then
+		local y = x - ((I.lastT or x));
+		if y > .02 then
+			local G, j = ((Z.X - I.lastPos.X)) / y, ((Z.Z - I.lastPos.Z)) / y;
+			if G * G + j * j < 900 then
+				I.vx, I.vz = G, j;
+			end;
+			I.lastPos, I.lastT = Z, x;
+		end;
+	elseif not I.lastPos then
+		I.lastPos, I.lastT = Z, x;
+	end;
+	local j, r = I.vx or 0, I.vz or 0;
+	if i.dlg or (i.dlgClick ~= nil) then
+		Y.aimRelease();
+	else
+		pcall(Y.aimStep, Vector3.new(Z.X, Z.Y + 2, Z.Z), true);
+	end;
+	local e = G.Position;
+	local C, v = e.X - Z.X, e.Z - Z.Z;
+	local U = math.sqrt(C * C + v * v);
+	local F, S = 1, 0;
+	if U > .5 then
+		F, S = C / U, v / U;
+	end;
+	local h = (Z.X + F * 2.5) + j * .2;
+	local d = (Z.Z + S * 2.5) + r * .2;
+	local u, M, B = h - e.X, Z.Y - e.Y, d - e.Z;
+	local Q = math.sqrt((u * u + M * M) + B * B);
+	if Q > i.WarpAbove then
+		Y.travelTo(Vector3.new(h, Z.Y - 3, d), x);
+		return;
+	end;
+	local g, a, O = j + u * 6, M * 6, r + B * 6;
+	local s = math.sqrt((g * g + a * a) + O * O);
+	if s > i.MoveSpeed then
+		local x = i.MoveSpeed / s;
+		g, a, O = g * x, a * x, O * x;
+	end;
+	if Q < .6 and j * j + r * r < 1 then
+		g, a, O = 0, 0, 0;
+	end;
+	pcall(function()
+		G.AssemblyLinearVelocity = Vector3.new(g, a, O);
+	end);
+end;
+r.MuzanRoute = {
+		Vector3.new(55.0, 826.5, 781.5),
+		Vector3.new(197.2, 871.4, 812.2),
+		Vector3.new(330.0, 873.0, 824.0),
+		Vector3.new(182.4, 873.0, 703.7),
+		Vector3.new(187.6, 914.8, 558.3),
+		Vector3.new(237.8, 940.5, 389.6),
+		Vector3.new(227.8, 963.5, 250.1),
+		Vector3.new(98.9, 963.5, 210.2),
+		Vector3.new(232.7, 963.5, 267.0),
+		Vector3.new(212.2, 940.5, 452.1),
+		Vector3.new(181.8, 909.0, 590.1),
+		Vector3.new(183.6, 873.0, 714.7),
+		Vector3.new(115.8, 826.5, 808.6),
+		Vector3.new(1920.6, 599.0, -881.0),
+		Vector3.new(1816.3, 599.0, -719.9),
+		Vector3.new(1748.2, 599.0, -549.1),
+		Vector3.new(1771.7, 599.0, -425.8),
+		Vector3.new(1787.4, 599.0, -295.5),
+		Vector3.new(1810.5, 599.0, -145.7),
+		Vector3.new(1667.8, 599.0, -92.7),
+		Vector3.new(1811.8, 599.0, -146.8),
+		Vector3.new(1776.7, 599.0, -332.5),
+		Vector3.new(1772.2, 599.0, -452.5),
+		Vector3.new(1762.0, 599.0, -632.5),
+		Vector3.new(1877.4, 599.0, -794.8),
+		Vector3.new(-687.0, 1380.5, -2606.5),
+		Vector3.new(-531.8, 1368.2, -2594.2),
+		Vector3.new(-410.5, 1348.5, -2603.5),
+		Vector3.new(-392.3, 1348.5, -2794.1),
+		Vector3.new(-413.6, 1380.5, -2992.6),
+		Vector3.new(-463.5, 1380.5, -3136.3),
+		Vector3.new(-451.1, 1350.0, -3301.2),
+		Vector3.new(-398.7, 1350.0, -3438.5),
+		Vector3.new(-251.6, 1350.0, -3452.8),
+		Vector3.new(-191.2, 1350.0, -3327.3),
+		Vector3.new(-182.9, 1380.5, -3188.0),
+		Vector3.new(-171.5, 1380.5, -2996.0),
+		Vector3.new(-173.1, 1373.7, -2862.2),
+		Vector3.new(-163.6, 1348.5, -2702.0),
+		Vector3.new(-172.5, 1348.5, -2548.0),
+		Vector3.new(-362.7, 1348.5, -2551.9),
+		Vector3.new(-499.4, 1352.7, -2594.5),
+		Vector3.new(-643.2, 1380.5, -2607.4),
+	};
+function Y.muzanSpots()
+	local x = {};
+	for I, y in ipairs({ G:FindFirstChild("Humanoids"), G:FindFirstChild("Debree") }) do
+		local G = y and y:FindFirstChild("Regions");
+		for I, y in ipairs(G and G:GetChildren() or {}) do
+			for I, G in ipairs({ y:FindFirstChild("ActiveNpcs"), y:FindFirstChild("StationaryNpcs") }) do
+				for I, G in ipairs(G and G:GetChildren() or {}) do
+					if string.find(string.lower(G.Name), "muzan", 1, true) then
+						local I = G:FindFirstChild(G.Name) or G:FindFirstChildOfClass("Model");
+						local Z = G:FindFirstChild("HumanoidRootPart") or (I and I:FindFirstChild("HumanoidRootPart")) or G:FindFirstChildWhichIsA("BasePart");
+						local j;
+						if Z then
+							pcall(function()
+								j = Z.Position;
+							end);
+						end;
+						x[#x + 1] = {
+								name = G.Name,
+								pos = j,
+								region = y.Name,
+								npc = true,
+							};
+					end;
+				end;
+			end;
+		end;
+	end;
+	return x;
+end;
+function Y.findMuzan(x)
+	local I, y = Y.char();
+	local G, Z;
+	for x, I in ipairs(Y.muzanSpots()) do
+		local j = ((y and I.pos)) and ((I.pos - y.Position)).Magnitude or nil;
+		if not G or (j and (Z and j < Z)) then
+			G, Z = I, j;
+		end;
+	end;
+	if G and G.pos then
+		if x then
+			Y.tpTo(Vector3.new(G.pos.X + 5, G.pos.Y, G.pos.Z), 3);
+			Y.notify("at muzan" .. ((G.region and " (" .. (G.region .. ")") or "")), 4);
+		else
+			Y.notify(string.format("muzan at %d, %d, %d - %d studs", G.pos.X, G.pos.Y, G.pos.Z, Z or 0), 6);
+		end;
+		return G;
+	end;
+	if G then
+		Y.notify("muzan is walking in " .. (tostring(G.region) .. " - travel there to see him"), 6);
+		return G;
+	end;
+	local j, i;
+	for x, I in ipairs(r.MuzanRoute) do
+		local G = y and ((I - y.Position)).Magnitude or 0;
+		if not i or G < i then
+			j, i = I, G;
+		end;
+	end;
+	if x and j then
+		Y.tpTo(j, 3);
+	end;
+	Y.notify("muzan is not walking the map - waiting spot set on his patrol route", 6);
+	return nil;
+end;
+r.BlackMarketer = { Vector3.new(-132.68, 804, 101.24), Vector3.new(2161.96, 823.46, -900.68) };
+function Y.bmBeside(x)
+	Y.tpTo(Vector3.new(x.X + 4, x.Y, x.Z), 2.5);
+	Y.notify("at the Black Marketer", 3);
+end;
+function Y.tpBlackMarketer()
+	local x = Y.findNamed("Black Marketer");
+	if x then
+		Y.bmBeside(x);
+		return;
+	end;
+	i.bm = { i = 1, t = os.clock() };
+	Y.tpTo(r.BlackMarketer[1], 3);
+	Y.sync();
+end;
+function Y.bmStep(x)
+	local I = i.bm;
+	if not I then
+		return;
+	end;
+	if x - I.t < 1.5 then
+		return;
+	end;
+	local y = Y.findNamed("Black Marketer");
+	if y then
+		i.bm = nil;
+		Y.bmBeside(y);
+		Y.sync();
+	elseif I.i < #r.BlackMarketer then
+		I.i = I.i + 1;
+		I.t = x;
+		Y.tpTo(r.BlackMarketer[I.i], 3);
+	else
+		i.bm = nil;
+		Y.notify("Black Marketer not at either spawn", 4);
+		Y.sync();
+	end;
+end;
+function Y.tpNamed(x, I)
+	local y = Y.findNamed(x);
+	local G = y or I;
+	if G then
+		Y.tpTo(G, 2.5);
+		Y.notify(((y and "Reached " or "Teleported to ")) .. x, 2);
+	else
+		Y.notify("No location for " .. tostring(x), 2);
+	end;
+end;
+local u = { t = -99, style = "Combat", item = nil };
+function Y.style()
+	local x = os.clock();
+	if x - u.t < 2.0 then
+		return u.style, u.item;
+	end;
+	u.t = x;
+	local I, y = Y.styleRaw();
+	u.style, u.item = I, y;
+	return I, y;
+end;
+function Y.styleRaw()
+	local x = Z.Character;
+	if not x then
+		return "Combat", nil;
+	end;
+	local y = I:FindFirstChild("Assets");
+	y = y and y:FindFirstChild("Animations");
+	local G = nil;
+	local j = x:GetChildren();
+	for x = 1, #j, 1 do
+		if j[x].ClassName == "Tool" then
+			G = j[x];
+			break;
+		end;
+	end;
+	if not G then
+		local I = x:FindFirstChild("Tool_Accessories");
+		if I then
+			G = (I:GetChildren())[1];
+		end;
+	end;
+	local i = nil;
+	local Y = I:FindFirstChild("CAM");
+	local e = Y and (Y.Client and Y.Client.Controllers);
+	e = e and e:FindFirstChild("Skills_Provider");
+	e = e and e:FindFirstChild("CurPower");
+	if e and (type(e.Value) == "string" and (e.Value ~= "" and y)) then
+		for x in string.gmatch(e.Value, "[^,]+") do
+			if y:FindFirstChild(x .. "_Combat_Anims") then
+				i = x;
+				break;
+			end;
+		end;
+	end;
+	if not i and (G and (y and y:FindFirstChild(G.Name .. "_Combat_Anims"))) then
+		i = G.Name;
+	end;
+	if not i and G then
+		i = G.Name;
+	end;
+	if not i then
+		i = "Combat";
+	end;
+	if r.Presets[i] then
+		return i, nil;
+	end;
+	local C = r.StyleMap[string.lower(i)];
+	if C then
+		return C, nil;
+	end;
+	local v = string.lower(i);
+	local U;
+	for x, I in pairs(r.StyleWords) do
+		if string.find(v, x, 1, true) and r.Presets[I] then
+			return I, nil;
+		end;
+	end;
+	for x in pairs(r.Presets) do
+		if x ~= "Combat" then
+			local I = string.lower(x);
+			local y = string.find(v, I, 1, true) ~= nil;
+			if not y and string.sub(I, -1) == "s" then
+				y = (v == string.sub(I, 1, -2)) or string.find(v, string.sub(I, 1, -2), 1, true) ~= nil;
+			end;
+			if not y then
+				y = (v .. "s" == I);
+			end;
+			if y and ((not U or #x > #U)) then
+				U = x;
+			end;
+		end;
+	end;
+	if U then
+		return U, nil;
+	end;
+	return "Regular Katana", i;
+end;
+function Y.targetBlocking()
+	if not i.SkipBlocking then
+		return false;
+	end;
+	local x = i.cur;
+	if not x or not x.Model or not Y.curAlive(x) then
+		return false;
+	end;
+	local I;
+	local y = pcall(function()
+			I = x.Model:FindFirstChild("Blocking");
+		end);
+	return y and I ~= nil;
+end;
+function Y.curBlocking()
+	local x = i.cur;
+	if not x or not x.Model or not Y.curAlive(x) then
+		return false;
+	end;
+	local I;
+	local y = pcall(function()
+			I = x.Model:FindFirstChild("Blocking");
+		end);
+	return y and I ~= nil;
+end;
+function Y.attack(x)
+	if not Y.remote then
+		return;
+	end;
+	local I = Z.Character;
+	if not I then
+		return;
+	end;
+	x = x or os.clock();
+	if x < ((i.atkNext or 0)) then
+		return;
+	end;
+	local y = i.cur;
+	if y and i.Reach > 0 then
+		local x;
+		local G = pcall(function()
+				x = ((y.Root.Position - I.HumanoidRootPart.Position)).Magnitude;
+			end);
+		if G and (x and x > i.Reach) then
+			return;
+		end;
+	end;
+	if Y.targetBlocking() then
+		i.blockedT = x;
+		if i.cur then
+			i.cur.t = x;
+		end;
+		return;
+	end;
+	local G = tonumber(I:GetAttribute("last_combo")) or 0;
+	if i.atkSent then
+		if G == i.atkSent then
+			i.atkMiss = 0;
+		else
+			i.atkMiss = ((i.atkMiss or 0)) + 1;
+		end;
+	end;
+	local j = G + 1;
+	if j > 5 or j < 1 then
+		j = 1;
+	end;
+	local r, e = Y.style();
+	pcall(function()
+		Y.remote:FireServer("Combat_Service", r, j, false, 0, false, e);
+	end);
+	i.atkSent = j;
+	i.atkCount = ((i.atkCount or 0)) + 1;
+	local C = i.AttackDelay;
+	if j == 1 then
+		C = C * 2.0;
+	end;
+	if ((i.atkMiss or 0)) > 0 then
+		C = C + .15 * i.atkMiss;
+	end;
+	if C > 1.6 then
+		C = 1.6;
+	end;
+	i.atkNext = x + C;
+end;
+function Y.goalFor(x)
+	local I = x.Position;
+	local y = i.Offset;
+	if i.Stance == "On Top" then
+		return I + Vector3.new(0, y, 0);
+	elseif i.Stance == "Above (Hover)" then
+		return I + Vector3.new(0, y + 4, 0);
+	elseif i.Stance == "Behind" then
+		local G;
+		if pcall(function()
+			G = x.CFrame.LookVector;
+		end) and G then
+			local x, Z = G.X, G.Z;
+			local j = math.sqrt(x * x + Z * Z);
+			if j > .001 then
+				return Vector3.new(I.X - (x / j) * y, I.Y + .8, I.Z - (Z / j) * y);
+			end;
+		end;
+		return I + Vector3.new(0, .8, y);
+	end;
+	return I - Vector3.new(0, y, 0);
+end;
+function Y.steer()
+	local x = i.cur;
+	if not x or not Y.curAlive(x) then
+		return;
+	end;
+	local I, y = Y.char();
+	if not y then
+		return;
+	end;
+	local G, Z;
+	local j = pcall(function()
+			Z = x.Root.Position;
+			G = Y.goalFor(x.Root);
+		end);
+	if not j or not G then
+		return;
+	end;
+	local r = y.Position;
+	local e, C, v = G.X - r.X, G.Y - r.Y, G.Z - r.Z;
+	local U = math.sqrt((e * e + C * C) + v * v);
+	if i.Smooth and U > i.WarpAbove then
+		pcall(function()
+			TS:Create(y, TweenInfo.new(0.5), {CFrame = CFrame.new(G.X, G.Y + 2, G.Z)}):Play()
+			y.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+		end);
+		return;
+	end;
+	if not i.Smooth then
+		pcall(function()
+			TS:Create(y, TweenInfo.new(0.5), {CFrame = CFrame.lookAt(G, Z)}):Play()
+			y.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+		end);
+		return;
+	end;
+	if U < .4 then
+		pcall(function()
+			y.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+		end);
+		if Z then
+			local x, I = Z.X - r.X, Z.Z - r.Z;
+			if (x * x + I * I) > .02 then
+				pcall(function()
+					TS:Create(y, TweenInfo.new(0.5), {CFrame = CFrame.lookAt(r, Vector3.new(Z.X, r.Y, Z.Z))}):Play()
+				end);
+			end;
+		end;
+		return;
+	end;
+	local F = U * 5.0;
+	if F > i.MoveSpeed then
+		F = i.MoveSpeed;
+	end;
+	local S = F / U;
+	pcall(function()
+		y.AssemblyLinearVelocity = Vector3.new(e * S, C * S, v * S);
+	end);
+end;
+local M = .001747;
+function Y.camYaw()
+	local x = G.CurrentCamera;
+	if not x then
+		return nil;
+	end;
+	local I;
+	local y = pcall(function()
+			I = x.CFrame.LookVector;
+		end);
+	if not y or not I then
+		return nil;
+	end;
+	return math.atan2(-I.X, -I.Z);
+end;
+local B = -0.001747;
+local Q = -0.001345;
+function Y.aimRelease()
+	if i.rmbDown then
+		pcall(function()
+			mouse2release();
+		end);
+		i.rmbRelT = os.clock();
+	end;
+	i.rmbDown = false;
+	i.aimActive = false;
+end;
+function Y.aimStep(x, I)
+	if (not i.AimLock and not I) or not x then
+		return Y.aimRelease();
+	end;
+	if i.win and i.win:IsVisible() then
+		return Y.aimRelease();
+	end;
+	if isrbxactive then
+		local x, I = pcall(isrbxactive);
+		if x and not I then
+			return Y.aimRelease();
+		end;
+	end;
+	local y = os.clock();
+	if not i.rmbDown and (ismouse2pressed and y - ((i.rmbRelT or 0)) > .15) then
+		local x, I = pcall(ismouse2pressed);
+		if x and I then
+			i.aimYieldUntil = y + 1.5;
+		end;
+	end;
+	if y < ((i.aimYieldUntil or 0)) then
+		return Y.aimRelease();
+	end;
+	local Z = G.CurrentCamera;
+	if not Z then
+		return Y.aimRelease();
+	end;
+	local j;
+	if not pcall(function()
+		j = Z.CFrame;
+	end) or not j then
+		return;
+	end;
+	local r, e = j.Position, j.LookVector;
+	local C = x.X - r.X;
+	local v = x.Y - r.Y;
+	local U = x.Z - r.Z;
+	local F = math.sqrt(C * C + U * U);
+	if F < .01 then
+		return;
+	end;
+	local S = math.atan2(-C, -U) - math.atan2(-e.X, -e.Z);
+	while S > math.pi do
+		S = S - 2 * math.pi;
+	end;
+	while S < -math.pi do
+		S = S + 2 * math.pi;
+	end;
+	local h = math.atan2(v, F) - math.asin(e.Y);
+	local d = math.max(math.abs(S), math.abs(h));
+	if i.aimActive then
+		if d < .03 then
+			return Y.aimRelease();
+		end;
+	elseif d < .15 then
+		return Y.aimRelease();
+	else
+		i.aimActive = true;
+	end;
+	if not i.rmbDown then
+		pcall(function()
+			mouse2press();
+		end);
+		i.rmbDown = true;
+	end;
+	local u = (S / B) * i.AimGain;
+	local M = (h / Q) * i.AimGain;
+	if u > 900 then
+		u = 900;
+	elseif u < -900 then
+		u = -900;
+	end;
+	if M > 600 then
+		M = 600;
+	elseif M < -600 then
+		M = -600;
+	end;
+	pcall(function()
+		mousemoverel(u, M);
+	end);
+end;
+function Y.syncSkills()
+	if not i.Skills or not i.win then
+		return;
+	end;
+	for x = 1, #i.Skills, 1 do
+		local I = i.Skills[x];
+		local y;
+		if pcall(function()
+			y = i.win:GetValue("sk_" .. (I.name .. "_on"));
+		end) and y ~= nil then
+			I.on = y and true or false;
+		end;
+	end;
+end;
+function Y.skillsRelease()
+	for x = 1, #((i.Skills or {})), 1 do
+		local I = i.Skills[x];
+		if I.vk and I.vk > 0 then
+			pcall(function()
+				keyrelease(I.vk);
+			end);
+		end;
+		I.rel = 0;
+	end;
+end;
+function Y.skillStep(x, I)
+	if not i.Skills then
+		return;
+	end;
+	if (x - ((i.skillSyncT or 0))) > 1.0 then
+		i.skillSyncT = x;
+		pcall(Y.syncSkills);
+	end;
+	local y;
+	for G = 1, #i.Skills, 1 do
+		local Z = i.Skills[G];
+		if Z.rel > 0 then
+			if x >= Z.rel then
+				pcall(function()
+					keyrelease(Z.vk);
+				end);
+				Z.rel = 0;
+				Z.next = x + i.SkillGap;
+			end;
+		elseif Z.on and (I and (I <= Z.dist and (x >= ((Z.next or 0)) and ((not Z.breaker or ((function()
+			if y == nil then
+				local x, I = pcall(Y.curBlocking);
+				y = x and I == true;
+			end;
+			return y;
+		end))()))))) then
+			Z.rel = x + Z.hold;
+			pcall(function()
+				keypress(Z.vk);
+			end);
+		end;
+	end;
+end;
+function Y.travelTo(x, I)
+	local y, G = Y.char();
+	if not G then
+		return;
+	end;
+	local Z = G.Position;
+	local j, r, e = x.X - Z.X, ((x.Y + 3)) - Z.Y, x.Z - Z.Z;
+	local C = math.sqrt((j * j + r * r) + e * e);
+	if C > i.WarpAbove or not i.Smooth then
+		pcall(function()
+			TS:Create(G, TweenInfo.new(0.5), {CFrame = CFrame.new(x.X, x.Y + 3, x.Z)}):Play()
+			G.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+		end);
+		return;
+	end;
+	if C < 1 then
+		return;
+	end;
+	local v = C * 5.0;
+	if v > i.MoveSpeed then
+		v = i.MoveSpeed;
+	end;
+	local U = v / C;
+	pcall(function()
+		G.AssemblyLinearVelocity = Vector3.new(j * U, r * U, e * U);
+	end);
+end;
+function Y.focused(x)
+	if not isrbxactive then
+		return true;
+	end;
+	local I, y = pcall(isrbxactive);
+	if not I then
+		return true;
+	end;
+	if y then
+		return true;
+	end;
+	if x and (x - ((i.warnedFocus or 0))) > 15 then
+		i.warnedFocus = x;
+		Y.notify("roblox not focused - T pickups paused", 4);
+	end;
+	return false;
+end;
+local function g(x)
+	local I = string.lower(x);
+	return string.find(I, "mound", 1, true) ~= nil or string.find(I, "snow", 1, true) ~= nil;
+end;
+function Y.openChests()
+	local x = {};
+	local I = G:FindFirstChild("Chests");
+	if not I then
+		return x;
+	end;
+	for I, y in ipairs(I:GetChildren()) do
+		if not y:FindFirstChild("SealVFX") and not g(y.Name) then
+			local I = y;
+			if y.ClassName ~= "Part" and y.ClassName ~= "MeshPart" then
+				I = y:FindFirstChild("RootPart") or y:FindFirstChildWhichIsA("BasePart");
+			end;
+			if I then
+				x[#x + 1] = { Name = y.Name, Root = I, Node = y };
+			end;
+		end;
+	end;
+	return x;
+end;
+function Y.collectStart(x, I)
+	if not x or #x == 0 then
+		return false;
+	end;
+	i.collect = {
+			list = x,
+			i = 1,
+			phase = "move",
+			t = os.clock(),
+		};
+	Y.notify(((I or "collecting")) .. (": " .. (#x .. " item(s)")), 3);
+	return true;
+end;
+function Y.collectStop()
+	i.collect = nil;
+	Y.aimRelease();
+	pcall(function()
+		keyrelease(84);
+	end);
+end;
+function Y.collectStep(x)
+	local I = i.collect;
+	if not I then
+		return false;
+	end;
+	local y, G = Y.char();
+	if not G then
+		return true;
+	end;
+	if not Y.focused(x) then
+		I.blocked = I.blocked or x;
+		if (x - I.blocked) > 6 then
+			Y.collectStop();
+			return false;
+		end;
+		return true;
+	end;
+	I.blocked = nil;
+	local Z = I.list[I.i];
+	if not Z then
+		Y.collectStop();
+		Y.notify("loot collected", 2);
+		return false;
+	end;
+	local j;
+	if not pcall(function()
+		j = Z.get();
+	end) or not j then
+		I.i = I.i + 1;
+		I.phase = "move";
+		I.t = x;
+		pcall(function()
+			keyrelease(84);
+		end);
+		return true;
+	end;
+	pcall(Y.aimStep, Vector3.new(j.X, j.Y + 1.5, j.Z), true);
+	local r, e, C = j.X, j.Y + ((Z.lift or 2.5)), j.Z;
+	if Z.side then
+		r = r + 6;
+		e = j.Y + 3;
+	end;
+	local v = G.Position;
+	local U, F, S = r - v.X, e - v.Y, C - v.Z;
+	local h = math.sqrt((U * U + F * F) + S * S);
+	if I.phase == "move" then
+		if h > i.WarpAbove then
+			pcall(function()
+				TS:Create(H, TweenInfo.new(0.5), {CFrame = CFrame.new(j.X, j.Y + 3, j.Z)}):Play()
+				G.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+			end);
+		elseif h > ((Z.reach or 3.5)) then
+			local x = h * 5.0;
+			if x > i.MoveSpeed then
+				x = i.MoveSpeed;
+			end;
+			local I = x / h;
+			pcall(function()
+				G.AssemblyLinearVelocity = Vector3.new(U * I, F * I, S * I);
+			end);
+		else
+			pcall(function()
+				G.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+			end);
+			I.settle = I.settle or (x + i.SettleT);
+			if x < I.settle then
+				return true;
+			end;
+			I.settle = nil;
+			I.phase = "hold";
+			I.t = x;
+			pcall(function()
+				keypress(84);
+			end);
+		end;
+		if x - I.t > 10 then
+			I.i = I.i + 1;
+			I.phase = "move";
+			I.t = x;
+			I.settle = nil;
+		end;
+	else
+		pcall(function()
+			G.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+		end);
+		local y = Z.hold or (Z.tap and .2 or i.HoldT);
+		if x - I.t >= y then
+			pcall(function()
+				keyrelease(84);
+			end);
+			local y = false;
+			if Z.soul and ((Z.tries or 0)) < 2 then
+				local x;
+				if pcall(function()
+					x = Z.get();
+				end) and x then
+					local I = ((x - G.Position)).Magnitude;
+					if I < ((Z.reach or 6)) + 3 then
+						Z.tries = ((Z.tries or 0)) + 1;
+						y = true;
+					end;
+				end;
+			end;
+			if not y then
+				I.i = I.i + 1;
+			end;
+			I.phase = "move";
+			I.t = x;
+			I.settle = nil;
+		end;
+	end;
+	return true;
+end;
+function Y.soulsNear(x, I)
+	local y = {};
+	local Z = G:FindFirstChild("Debree");
+	if not Z then
+		return y;
+	end;
+	local function j(G)
+		local Z = string.lower(G.Name);
+		if not string.match(Z, "soul$") then
+			return;
+		end;
+		if string.find(Z, "host", 1, true) or string.find(Z, "grab", 1, true) then
+			return;
+		end;
+		local j = G;
+		if G.ClassName ~= "Part" and G.ClassName ~= "MeshPart" then
+			j = G:FindFirstChild("Root") or G:FindFirstChildWhichIsA("BasePart");
+		end;
+		if not j then
+			return;
+		end;
+		for x = 1, #y, 1 do
+			if y[x].root == j then
+				return;
+			end;
+		end;
+		local r;
+		if pcall(function()
+			r = ((j.Position - x)).Magnitude;
+		end) and (r and r <= I) then
+			y[#y + 1] = {
+					root = j,
+					get = function()
+						return j.Position;
+					end,
+					soul = true,
+					hold = math.max(i.HoldT or 2, 2.5),
+					lift = 0,
+					reach = 6,
+				};
+		end;
+	end;
+	for x, I in ipairs(Z:GetChildren()) do
+		j(I);
+		if I.ClassName == "Folder" or I.ClassName == "Model" then
+			for x, I in ipairs(I:GetChildren()) do
+				j(I);
+			end;
+		end;
+	end;
+	return y;
+end;
+function Y.soulStep(x)
+	if not i.AutoSouls then
+		return false;
+	end;
+	local I, y = Y.char();
+	if not y then
+		return false;
+	end;
+	local G = i.soul;
+	if x - ((G and G.chk or 0)) < .25 then
+		if not G or not G.pos then
+			return false;
+		end;
+	end;
+	local Z = Y.soulsNear(y.Position, i.LootRange);
+	if #Z == 0 then
+		if G then
+			if G.held then
+				pcall(function()
+					keyrelease(84);
+				end);
+			end;
+			i.soul = nil;
+		end;
+		return false;
+	end;
+	local j, r;
+	for x = 1, #Z, 1 do
+		local I;
+		if pcall(function()
+			I = Z[x].get();
+		end) and I then
+			local x = ((I - y.Position)).Magnitude;
+			if not r or x < r then
+				j, r = I, x;
+			end;
+		end;
+	end;
+	if not j then
+		return false;
+	end;
+	if not G then
+		G = { t = x, tries = 0 };
+		i.soul = G;
+	end;
+	G.chk = x;
+	G.pos = j;
+	if r > 6 then
+		G.held = false;
+		pcall(function()
+			keyrelease(84);
+		end);
+		Y.travelTo(Vector3.new(j.X, j.Y - 3, j.Z), x);
+		if x - G.t > 20 then
+			i.soul = nil;
+		end;
+		return true;
+	end;
+	pcall(function()
+		y.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+	end);
+	pcall(Y.aimStep, j, true);
+	if not Y.focused(x) then
+		return true;
+	end;
+	local e = math.max(i.HoldT or 2, 2.5);
+	if not G.held then
+		if x - ((G.rel or 0)) < .15 then
+			return true;
+		end;
+		G.held = true;
+		G.pressT = x;
+		pcall(function()
+			keypress(84);
+		end);
+	elseif x - ((G.pressT or x)) > e then
+		G.held = false;
+		G.rel = x;
+		G.tries = G.tries + 1;
+		pcall(function()
+			keyrelease(84);
+		end);
+		if G.tries >= 6 then
+			i.soul = nil;
+		end;
+	end;
+	return true;
+end;
+function Y.partOf(x, I)
+	local y = x.ClassName;
+	if y == "Part" or y == "MeshPart" then
+		return x;
+	end;
+	return (I and x:FindFirstChild(I)) or x:FindFirstChildWhichIsA("BasePart");
+end;
+function Y.refind(x, I)
+	if not x or not I then
+		return nil;
+	end;
+	local y = x:GetChildren();
+	for x = 1, #y, 1 do
+		if Y.addr(y[x]) == I then
+			return y[x];
+		end;
+	end;
+	return nil;
+end;
+function Y.pickup(x, I, y, G, Z, j)
+	local i = j or {};
+	i.folderFn, i.prefer = I, Z;
+	i.node, i.part = y, G;
+	i.addr, i.pAddr = Y.addr(y), Y.addr(x);
+	i.seen = os.clock();
+	i.get = function()
+			return Y.pickupPos(i);
+		end;
+	return i;
+end;
+function Y.pickupPos(x)
+	if x.gone then
+		return nil;
+	end;
+	local I = os.clock();
+	if I - ((x.seen or 0)) > .016 then
+		local y = x.folderFn();
+		local G = Y.refind(y, x.addr);
+		local Z = G and Y.partOf(G, x.prefer);
+		if not Z then
+			x.gone = true;
+			return nil;
+		end;
+		x.node, x.part, x.pAddr = G, Z, Y.addr(y);
+		x.seen = I;
+	end;
+	local y, G = pcall(function()
+			return x.part.Position;
+		end);
+	if y and G then
+		return G;
+	end;
+	return nil;
+end;
+local function a()
+	return G:FindFirstChild("LootDrops");
+end;
+local function O()
+	return G:FindFirstChild("Chests");
+end;
+function Y.lootNear(x, I)
+	local y = {};
+	local G = os.clock();
+	local Z = a();
+	if Z then
+		for G, j in ipairs(Z:GetChildren()) do
+			local i = Y.partOf(j);
+			if i then
+				local G;
+				if pcall(function()
+					G = ((i.Position - x)).Magnitude;
+				end) and (G and G <= I) then
+					y[#y + 1] = Y.pickup(Z, a, j, i);
+				end;
+			end;
+		end;
+	end;
+	local j = O();
+	for Z, r in ipairs(Y.openChests()) do
+		local e;
+		if pcall(function()
+			e = ((r.Root.Position - x)).Magnitude;
+		end) and (e and e <= I) then
+			local x = r.Root.Position;
+			local I = r.Name .. ("@" .. (math.floor(x.X) .. ("," .. math.floor(x.Z))));
+			local Z = i.chestTap[I];
+			if not Z or (G - Z) > 45 then
+				i.chestTap[I] = G;
+				table.insert(y, 1, Y.pickup(j, O, r.Node, r.Root, "RootPart", { tap = true, side = true }));
+			end;
+		end;
+	end;
+	return y;
+end;
+function Y.dAttr(x, I, y)
+	local G, Z = pcall(function()
+			return x:GetAttribute(I);
+		end);
+	if G and Z ~= nil then
+		return Z;
+	end;
+	return y;
+end;
+function Y.dungeonMult(x, I)
+	for I, y in ipairs({ "PointMultiplier", "PointsMultiplier", "ScoreMultiplier" }) do
+		local G = tonumber(Y.dAttr(x, y, nil));
+		if G and G > 0 then
+			if G > 100 then
+				return G / 100;
+			end;
+			if G > 10 then
+				return 1 + G / 100;
+			end;
+			return G;
+		end;
+	end;
+	if not string.find(I, "point", 1, true) and not string.find(I, "score", 1, true) then
+		return nil;
+	end;
+	local y = string.gsub(I, "\195\151", "x");
+	local G = tonumber(string.match(y, "x%s*(%d+%.?%d*)")) or tonumber(string.match(y, "(%d+%.?%d*)%s*x"));
+	if G then
+		return G;
+	end;
+	local Z = tonumber(string.match(y, "(%d+%.?%d*)%s*%%"));
+	if Z then
+		return 1 + Z / 100;
+	end;
+	return nil;
+end;
+function Y.dungeonScore(x, I)
+	local y = tostring(Y.dAttr(x, "Title", x.Name) or "");
+	local G = tostring(Y.dAttr(x, "Description", "") or "");
+	local Z = tostring(Y.dAttr(x, "Type", "") or "");
+	local j = tostring(Y.dAttr(x, "Stat", "") or "");
+	local i = string.lower(y .. (" " .. (G .. (" " .. (Z .. (" " .. j))))));
+	local e = string.gsub(i, "[%s_%-]", "");
+	if string.find(e, "secondwind", 1, true) then
+		return I and 2000000 or -50000;
+	end;
+	local C = Y.dungeonMult(x, i);
+	if C then
+		return 1000000 + math.min(math.max(C, 0), 9) * 100000;
+	end;
+	if string.find(e, "bossrush", 1, true) then
+		return 960000;
+	end;
+	if string.find(i, "ascension", 1, true) then
+		return 950000;
+	end;
+	if string.find(e, "luckydraw", 1, true) then
+		return 900000;
+	end;
+	local v = Y.dAttr(x, "Rarity", 1);
+	local U = tonumber(v) or 1;
+	local F = string.lower(tostring(v));
+	local S = string.find(i, "legendary", 1, true) ~= nil or U == 5 or string.find(F, "legendary", 1, true) ~= nil;
+	local h = U == 6 or string.find(F, "mythic", 1, true) ~= nil or F == "red";
+	local d = U == 3 or string.find(F, "rare", 1, true) ~= nil or F == "blue";
+	local u = false;
+	for x, I in ipairs(r.DungeonBad) do
+		if string.find(i, I, 1, true) then
+			u = true;
+			break;
+		end;
+	end;
+	if not u and ((h or S or d)) then
+		local x = string.find(i, "damage", 1, true) or string.find(i, "dmg", 1, true);
+		local I = string.find(i, "health", 1, true) or string.find(i, "heal", 1, true) or string.find(i, "hp", 1, true) or string.find(i, "life", 1, true);
+		local y = string.find(e, "attackspeed", 1, true) or string.find(i, "faster attacks", 1, true);
+		if x or I or y then
+			return h and 880000 or (S and 870000 or 860000);
+		end;
+	end;
+	local M = 0;
+	if h then
+		M = M + 70000;
+	elseif S then
+		M = M + 60000;
+	elseif d then
+		M = M + 50000;
+	end;
+	if u then
+		M = M - 100000;
+	else
+		M = M + 10000;
+		if string.find(i, "heal", 1, true) or string.find(i, "health", 1, true) or string.find(i, "regen", 1, true) or string.find(i, "points", 1, true) then
+			M = M + 10000;
+		end;
+	end;
+	return M;
+end;
+r.DungeonBad = {
+		"cannot dash",
+		"can\'t dash",
+		"no dash",
+		"double jump",
+		"no jumping",
+		"cannot jump",
+		"less health",
+		"reduced health",
+		"max health reduced",
+		"lose health",
+		"health is reduced",
+		"take more damage",
+		"damage taken",
+		"slower",
+		"reduced damage",
+		"less damage",
+		"enemies deal more",
+		"reduced attack speed",
+		"less attack speed",
+		"slower attacks",
+	};
+function Y.dungeonOfferButton(x)
+	local I = Z:FindFirstChild("PlayerGui");
+	local y = I and I:FindFirstChild("ComponentsHolder");
+	local G = y and y:FindFirstChild("MainNotificationFrame");
+	local j = G and G:FindFirstChild("OuwigaharaOffers");
+	if not j then
+		return nil;
+	end;
+	local i = j:FindFirstChild(x);
+	if not i then
+		for I, y in ipairs(j:GetDescendants()) do
+			if y.Name == x and y.ClassName == "Frame" then
+				i = y;
+				break;
+			end;
+		end;
+	end;
+	if not i then
+		return nil;
+	end;
+	for x, I in ipairs(i:GetDescendants()) do
+		if I.ClassName == "TextButton" or I.ClassName == "ImageButton" then
+			return I;
+		end;
+	end;
+	return i;
+end;
+function Y.dungeonCardsShown()
+	local x = Z:FindFirstChild("OuwigaharaOffers");
+	if not x or #x:GetChildren() == 0 then
+		return false;
+	end;
+	if Y.dAttr(x, "Picked", false) == true then
+		return false;
+	end;
+	local I = Z:FindFirstChild("PlayerGui");
+	local y = I and I:FindFirstChild("ComponentsHolder");
+	local G = y and y:FindFirstChild("MainNotificationFrame");
+	local j = G and G:FindFirstChild("OuwigaharaOffers");
+	return j ~= nil and #j:GetChildren() > 0;
+end;
+function Y.dungeonCard(x)
+	local I = i.dungeon;
+	if x < ((I.cardAt or 0)) then
+		return false;
+	end;
+	I.cardAt = x + .25;
+	local y = Z:FindFirstChild("OuwigaharaOffers");
+	if not y then
+		return false;
+	end;
+	if Y.dAttr(y, "Picked", false) == true then
+		return false;
+	end;
+	local G = y:GetChildren();
+	if #G == 0 then
+		return false;
+	end;
+	if not Y.focused(x) or not Y.scrOffset(x) then
+		return false;
+	end;
+	local j, r;
+	for x, y in ipairs(G) do
+		local G = tostring(Y.dAttr(y, "Title", y.Name) or y.Name);
+		local Z = tostring(Y.dAttr(y, "Description", "") or "");
+		local i = string.lower(y.Name .. (" " .. (G .. (" " .. Z))));
+		if not string.find(i, "mother bear", 1, true) and not string.find(i, "reroll", 1, true) then
+			local x = Y.dungeonScore(y, ((I.swRounds or 0)) > 0);
+			if not r or x > r then
+				j, r = y, x;
+			end;
+		end;
+	end;
+	if not j then
+		return false;
+	end;
+	local e = Y.dungeonOfferButton(j.Name);
+	if not e then
+		return false;
+	end;
+	local C;
+	pcall(function()
+		C = e.AbsolutePosition;
+	end);
+	if not C then
+		return false;
+	end;
+	local v = Y.absSize and Y.absSize(e);
+	local U, F = v and tonumber(v.X) or 0, v and tonumber(v.Y) or 0;
+	Y.dlgClickAt(C.X + ((U > 4 and U * .5 or 40)), C.Y + ((F > 4 and F * .5 or 14)));
+	I.cardAt = x + .75;
+	if ((I.swRounds or 0)) > 0 then
+		I.swRounds = I.swRounds - 1;
+	end;
+	Y.notify("dungeon: took " .. tostring(Y.dAttr(j, "Title", j.Name) or j.Name), 3);
+	return true;
+end;
+function Y.dungeonStep(x)
+	local I = i.dungeon;
+	if not I then
+		I = {};
+		i.dungeon = I;
+	end;
+	local y, G, Z = Y.char();
+	if Z then
+		local x, y = 0, 0;
+		pcall(function()
+			x = Z.Health;
+			y = Z.MaxHealth;
+		end);
+		if y > 0 and x > 0 then
+			local G = x / y;
+			if I.lowHp then
+				if G >= .85 then
+					I.lowHp = false;
+				end;
+			elseif G <= .75 then
+				I.lowHp = true;
+				I.swRounds = 2;
+				Y.notify("dungeon: health low - taking Second Wind for the next 2 picks", 4);
+			end;
+		end;
+	end;
+	return Y.dungeonCard(x);
+end;
+function Y.dungeonNames()
+	if r.DungeonNames then
+		return r.DungeonNames;
+	end;
+	local x = { ["cache trainee"] = true };
+	for I, y in ipairs(r.Mobs) do
+		if not string.find(y, "^All ") then
+			x[string.lower(y)] = true;
+		end;
+	end;
+	for I, y in ipairs(r.Bosses) do
+		if not string.find(y, "^All ") then
+			x[string.lower(y)] = true;
+		end;
+	end;
+	r.DungeonNames = x;
+	return x;
+end;
+function Y.dungeonTargets(x)
+	local I = i.dungeon;
+	if not I then
+		I = {};
+		i.dungeon = I;
+	end;
+	if I.listAt and x - I.listAt < .3 then
+		return I.list or {};
+	end;
+	I.listAt = x;
+	local y = {};
+	local Z = Y.dungeonNames();
+	for I, j in ipairs({ "Humanoids", "Debree" }) do
+		local i = G:FindFirstChild(j);
+		local r = i and i:FindFirstChild("Regions");
+		for I, G in ipairs({ "Ouwigahara", "Temporary" }) do
+			local i = r and r:FindFirstChild(G);
+			local e = i and i:FindFirstChild("ActiveNpcs");
+			for I, i in ipairs(e and e:GetChildren() or {}) do
+				local r = i.Name;
+				if not U[r] then
+					local I = i:FindFirstChildOfClass("Model");
+					if not I and i.ClassName == "Model" then
+						I = i;
+					end;
+					if I then
+						local e = G ~= "Temporary" or Z[string.lower(r)] == true;
+						if not e then
+							e = ((I:FindFirstChild("OuwigaharaMark") or i:FindFirstChild("OuwigaharaMark"))) ~= nil;
+						end;
+						local C = e and I:FindFirstChildOfClass("Humanoid");
+						local v = C and I:FindFirstChild("HumanoidRootPart");
+						local U = false;
+						if v then
+							pcall(function()
+								U = C.Health > 0;
+							end);
+						end;
+						if U then
+							local Z = {
+									Model = I,
+									Hum = C,
+									Root = v,
+									Name = r,
+									Boss = Y.isBoss(i),
+								};
+							Z.PAddr = Y.addr(i);
+							Z.IAddr = Z.PAddr;
+							Z.MAddr = Y.addr(I);
+							Z.Src, Z.Region, Z.chkT = j, G, x;
+							y[#y + 1] = Z;
+						end;
+					end;
+				end;
+			end;
+		end;
+	end;
+	I.list = y;
+	return y;
+end;
+function Y.crowBossFromText(x)
+	local I = string.lower(tostring(x or ""));
+	local y = string.match(I, "defeat%s+(.-)%s*$");
+	if not y or y == "" or y == "mother bear" then
+		return nil;
+	end;
+	for x, I in ipairs(r.Bosses) do
+		if I ~= "All Bosses" and (I ~= "Mother Bear" and string.lower(I) == y) then
+			return I;
+		end;
+	end;
+	return nil;
+end;
+function Y.crowChoices()
+	local x = os.clock();
+	local I = i.crowPicks;
+	if I and (x - I.t) < .35 then
+		return I.list;
+	end;
+	local y = {};
+	local G = Z:FindFirstChild("PlayerGui");
+	if not G then
+		i.crowPicks = { t = x, list = y };
+		return y;
+	end;
+	local function j(x, I)
+		if I > 8 then
+			return;
+		end;
+		for x, G in ipairs(x:GetChildren()) do
+			local Z = G.ClassName;
+			if Z == "TextButton" or Z == "TextLabel" or Z == "ImageButton" then
+				local x;
+				pcall(function()
+					x = G.Text;
+				end);
+				local I = Y.crowBossFromText(x);
+				if I then
+					local x;
+					pcall(function()
+						x = G.AbsolutePosition;
+					end);
+					if not ((x and (x.X > 0 and x.Y > 0))) then
+						local I = G.Parent;
+						for y = 1, 4, 1 do
+							if not I then
+								break;
+							end;
+							local G;
+							pcall(function()
+								G = I.AbsolutePosition;
+							end);
+							if G and (G.X > 0 and G.Y > 0) then
+								x = G;
+								break;
+							end;
+							I = I.Parent;
+						end;
+					end;
+					if x and (x.X > 0 and x.Y > 0) then
+						local Z, j = 0, 0;
+						local i = Y.absSize and Y.absSize(G);
+						if i then
+							Z = tonumber(i.X) or 0;
+							j = tonumber(i.Y) or 0;
+						end;
+						local r, e, C, v;
+						local U = G.Parent;
+						for x = 1, 4, 1 do
+							if not U then
+								break;
+							end;
+							local I = U.ClassName;
+							if I == "TextButton" or I == "ImageButton" then
+								local x;
+								pcall(function()
+									x = U.AbsolutePosition;
+								end);
+								local I = Y.absSize and Y.absSize(U);
+								if x and (x.X > 0 and x.Y > 0) then
+									r, e = x.X, x.Y;
+									C = I and tonumber(I.X) or 0;
+									v = I and tonumber(I.Y) or 0;
+								end;
+								break;
+							end;
+							U = U.Parent;
+						end;
+						y[#y + 1] = {
+								x = x.X,
+								y = x.Y,
+								w = Z,
+								h = j,
+								bx = r,
+								by = e,
+								bw = C,
+								bh = v,
+								boss = I,
+							};
+					end;
+				end;
+			end;
+			j(G, I + 1);
+		end;
+	end;
+	j(G, 0);
+	table.sort(y, function(x, I)
+		return x.y < I.y;
+	end);
+	local r, e = {}, {};
+	for x, I in ipairs(y) do
+		local y = I.boss .. (":" .. math.floor(I.y / 20));
+		if not r[y] then
+			r[y] = true;
+			e[#e + 1] = I;
+		end;
+	end;
+	i.crowPicks = { t = x, list = e };
+	return e;
+end;
+function Y.crowDump()
+	if i.crowDumped then
+		return;
+	end;
+	i.crowDumped = true;
+	local x = { os.date("%H:%M:%S") .. " crow menu dump" };
+	local function I(I, y)
+		local G, Z, j, i, r, e = "?", "?", nil, nil, nil, nil;
+		pcall(function()
+			G = I.Name;
+			Z = I.ClassName;
+		end);
+		pcall(function()
+			j = I.Text;
+		end);
+		pcall(function()
+			i = I.AbsolutePosition;
+		end);
+		pcall(function()
+			r = I.Visible;
+			e = I.Active;
+		end);
+		local C = Y.absSize and Y.absSize(I);
+		x[#x + 1] = string.rep(" ", y) .. (Z .. (" " .. (G .. (" pos=" .. (((i and (math.floor(i.X) .. ("," .. math.floor(i.Y))) or "?")) .. (" size=" .. (((C and (math.floor(tonumber(C.X) or 0) .. ("x" .. math.floor(tonumber(C.Y) or 0))) or "?")) .. (" vis=" .. (tostring(r) .. (" active=" .. (tostring(e) .. ((j and (j ~= "" and (" text=" .. string.sub(tostring(j), 1, 40))) or "")))))))))))));
+	end;
+	local y = Z:FindFirstChild("PlayerGui");
+	local function G(y, Z)
+		if Z > 9 then
+			return;
+		end;
+		for y, j in ipairs(y:GetChildren()) do
+			local i;
+			pcall(function()
+				i = j.Text;
+			end);
+			if Y.crowBossFromText(i) then
+				local y, G = {}, j;
+				for x = 1, 6, 1 do
+					if not G then
+						break;
+					end;
+					y[#y + 1] = G;
+					G = G.Parent;
+				end;
+				x[#x + 1] = "--- offer: " .. tostring(i);
+				for x = #y, 1, -1 do
+					I(y[x], ((#y - x)) * 2);
+				end;
+				for x, y in ipairs(j.Parent and j.Parent:GetChildren() or {}) do
+					I(y, 14);
+				end;
+			end;
+			G(j, Z + 1);
+		end;
+	end;
+	if y then
+		pcall(G, y, 0);
+	end;
+	pcall(function()
+		writefile("crow_ui.txt", table.concat(x, string.char(10)));
+	end);
+	Y.notify("crow: wrote crow_ui.txt", 4);
+end;
+function Y.crowPoint(x, I)
+	I = I or 1;
+	if I <= 1 and (((x.w or 0)) > 4 and ((x.h or 0)) > 4) then
+		return x.x + x.w * .5, x.y + x.h * .5;
+	end;
+	if I <= 2 then
+		return x.x + 40, x.y + 14;
+	end;
+	if I <= 3 and (x.bx and ((x.bw or 0)) > 4) then
+		return x.bx + x.bw * .5, x.by + ((x.bh or 20)) * .5;
+	end;
+	if I <= 4 then
+		return x.x + 120, x.y + 14;
+	end;
+	return x.x + 8, x.y + 8;
+end;
+function Y.equipSlot(x, I)
+	local y = 48 + math.max(1, math.min(5, math.floor(x or 1)));
+	pcall(function()
+		keypress(y);
+	end);
+	i.crowKeyUp = { vk = y, t = I + .15 };
+end;
+function Y.heldItem()
+	local x = Z.Character;
+	if not x then
+		return nil;
+	end;
+	local I = x:GetChildren();
+	for x = 1, #I, 1 do
+		if I[x].ClassName == "Tool" then
+			return I[x].Name;
+		end;
+	end;
+	local y = x:FindFirstChild("Tool_Accessories");
+	local G = y and (y:GetChildren())[1];
+	return G and G.Name or nil;
+end;
+function Y.weaponHeld()
+	local x = Y.heldItem();
+	if not x then
+		return false;
+	end;
+	local I = string.lower(x);
+	if r.StyleMap[I] then
+		return true;
+	end;
+	if r.Presets[x] and x ~= "Combat" then
+		return true;
+	end;
+	for x in pairs(r.StyleWords) do
+		if string.find(I, x, 1, true) then
+			return true;
+		end;
+	end;
+	return string.find(I, "katana", 1, true) ~= nil;
+end;
+function Y.crowClose(x)
+	Y.equipSlot(i.WeapSlot or 1, x);
+end;
+function Y.crowUse(x)
+	Y.equipSlot(i.CrowSlot or 2, x);
+	i.crow.clickAt = x + .6;
+end;
+function Y.crowStep(x)
+	local I = i.crow;
+	if not I then
+		I = { phase = "idle", t = x };
+		i.crow = I;
+	end;
+	if not Y.focused(x) then
+		return nil;
+	end;
+	if not Y.scrOffset(x) then
+		return nil;
+	end;
+	if i.crowKeyUp and x >= i.crowKeyUp.t then
+		local x = i.crowKeyUp.vk;
+		i.crowKeyUp = nil;
+		pcall(function()
+			keyrelease(x);
+		end);
+	end;
+	if I.clickAt and x >= I.clickAt then
+		I.clickAt = nil;
+		Y.dlgClickAt(((i.crowClickX or 960)) - ((i.scrOffX or 0)), ((i.crowClickY or 540)) - ((i.scrOffY or 0)));
+	end;
+	local y = Y.activeQuest();
+	if y and (not y.Complete and I.phase ~= "fight") then
+		local G = Y.questTarget(y);
+		if not G then
+			for x = 1, #((y.Tasks or {})), 1 do
+				G = G or Y.codeToMob(y.Tasks[x].Code);
+			end;
+		end;
+		if G and r.BossNames[string.lower(G)] then
+			I.target = G;
+			I.quest = y.Name;
+			I.phase = "fight";
+			I.lastAlive = x;
+			Y.notify("crow: already on " .. (y.Name .. (" - hunting " .. G)), 4);
+			return G;
+		end;
+	end;
+	if I.phase == "idle" then
+		if x < ((I.nextAt or 0)) then
+			return nil;
+		end;
+		I.prevQuest = y and y.Name or nil;
+		Y.crowUse(x);
+		I.phase = "menu";
+		I.menuAt = x + 3.5;
+		I.deadline = x + 10;
+		return nil;
+	end;
+	if I.phase == "menu" then
+		if x < ((I.menuAt or 0)) then
+			return nil;
+		end;
+		I.skip = I.skip or {};
+		local y;
+		for G, Z in ipairs(Y.crowChoices()) do
+			if x >= ((I.skip[Z.boss] or 0)) then
+				y = Z;
+				break;
+			end;
+		end;
+		if y then
+			I.aim = (I.aim or (i.crowAim or 1));
+			local G, Z = Y.crowPoint(y, I.aim);
+			Y.dlgClickAt(G, Z);
+			I.pick = y;
+			I.target = y.boss;
+			I.phase = "quest";
+			I.deadline = x + 5;
+			I.sawBoss = false;
+			Y.mark("crow click " .. (y.boss .. (" aim " .. (tostring(I.aim) .. (" at " .. (math.floor(G) .. ("," .. math.floor(Z))))))));
+			Y.notify("crow: taking " .. y.boss, 3);
+		elseif x >= ((I.deadline or 0)) then
+			I.phase = "idle";
+			I.nextAt = x + 2;
+			Y.notify("crow: no boss offer found, retrying", 4);
+		end;
+		return nil;
+	end;
+	if I.phase == "quest" then
+		local G = y and y.Name ~= I.prevQuest;
+		if y and (not y.Complete and ((G or (I.target and Y.questMatchesEntry(y.Name, I.target))))) then
+			i.crowAim = I.aim or 1;
+			I.tries = 0;
+			I.quest = y.Name;
+			I.phase = "fight";
+			I.lastAlive = x;
+			I.eqT = 0;
+			if #Y.crowChoices() > 0 then
+				Y.crowClose(x);
+			end;
+			Y.notify("crow: hunting " .. tostring(I.target), 3);
+		elseif x >= ((I.deadline or 0)) then
+			if #Y.crowChoices() > 0 then
+				local y = ((I.tries or 0)) + 1;
+				I.tries = y;
+				if y < 2 then
+					I.aim = ((I.aim or 1)) % 5 + 1;
+				else
+					I.skip = I.skip or {};
+					if I.target then
+						I.skip[I.target] = x + 600;
+					end;
+					Y.notify("crow: " .. (tostring(I.target) .. " was refused - taking another hunt"), 4);
+					I.tries, I.aim = 0, i.crowAim;
+				end;
+				I.phase = "menu";
+				I.menuAt = x + .4;
+				I.deadline = x + 8;
+				return nil;
+			end;
+			Y.crowClose(x);
+			I.aim = nil;
+			I.target = nil;
+			I.phase = "idle";
+			I.nextAt = x + 3;
+		end;
+		return nil;
+	end;
+	if not Y.weaponHeld() and x - ((I.eqT or 0)) > 1.5 then
+		I.eqT = x;
+		Y.equipSlot(i.WeapSlot or 1, x);
+	end;
+	if not y or (y.Name == I.quest and y.Complete) then
+		I.target, I.quest, I.phase, I.nextAt = nil, nil, "idle", x + 1;
+		Y.notify("crow: boss quest done, next one", 3);
+		return nil;
+	end;
+	return I.target;
+end;
+r.Crystals = {
+		{ Region = "Mistfall Harbor", Name = "Mistfall Harbor", Pos = Vector3.new(135.8, 873.7, 734.1) },
+		{ Region = "Windy Peak", Name = "Windy Peak", Pos = Vector3.new(-650, 1245, -1100) },
+		{ Region = "Bamboo Grove", Name = "Bamboo Grove Sanctuary", Pos = Vector3.new(540, 1122, -1023) },
+		{ Region = "Bamboo Grove", Name = "Bamboo Grove", Pos = Vector3.new(657.4, 1021.2, 139.7) },
+		{ Region = "Butterfly Estate", Name = "Butterfly Estate", Pos = Vector3.new(-1767.39, 314.51, -121.67) },
+		{ Region = "Hidden Mist Village", Name = "Hidden Mist Village", Pos = Vector3.new(-263.1, 1043.5, -1150.5) },
+		{ Region = "Iceveil Valley", Name = "Iceveil Settlement", Pos = Vector3.new(485.3, 1222.9, -1813.4) },
+		{ Region = "Final Selection Plains", Name = "Final Selection", Pos = Vector3.new(-2626.7, 284, -191.2) },
+	};
+function Y.unlockStart()
+	if i.unlock then
+		Y.notify("already unlocking locations", 3);
+		return;
+	end;
+	i.unlock = { i = 1, phase = "go", t = os.clock() };
+	Y.notify("unlocking " .. (#r.Crystals .. " locations - panic key stops it"), 4);
+	Y.sync();
+end;
+function Y.unlockStop()
+	if i.unlock and i.unlock.held then
+		pcall(function()
+			keyrelease(84);
+		end);
+	end;
+	i.unlock = nil;
+end;
+function Y.crystalPart(x)
+	local I = G:FindFirstChild("Debree");
+	local y = I and I:FindFirstChild("Regions");
+	local Z = y and y:FindFirstChild(x);
+	for x, I in ipairs(Z and Z:GetChildren() or {}) do
+		local y = string.lower(I.Name);
+		if string.find(y, "crystal", 1, true) or string.find(y, "spawn", 1, true) then
+			local x = I:FindFirstChild("Root") or I:FindFirstChild("Cube") or I:FindFirstChildWhichIsA("BasePart");
+			if I.ClassName == "Part" or I.ClassName == "MeshPart" then
+				x = I;
+			end;
+			if x then
+				return x;
+			end;
+		end;
+	end;
+	return nil;
+end;
+function Y.unlockStep(x)
+	local I = i.unlock;
+	if not I then
+		return false;
+	end;
+	local y = r.Crystals[I.i];
+	if not y then
+		Y.unlockStop();
+		Y.notify("every location visited", 4);
+		Y.sync();
+		return false;
+	end;
+	if not Y.focused(x) then
+		return true;
+	end;
+	if I.phase == "go" then
+		if x < I.t then
+			return true;
+		end;
+		Y.notify("unlocking " .. (I.i .. ("/" .. (#r.Crystals .. (": " .. y.Name)))), 2);
+		Y.tpTo(y.Pos, 3);
+		I.phase, I.t = "find", x;
+	elseif I.phase == "find" then
+		if x - I.t < 1.0 then
+			return true;
+		end;
+		local G = Y.crystalPart(y.Region);
+		local Z;
+		if G then
+			pcall(function()
+				Z = G.Position;
+			end);
+		end;
+		if Z then
+			Y.tpTo(Vector3.new(Z.X, Z.Y, Z.Z + 2.5), 1.5);
+		end;
+		I.phase, I.t = "hold", x;
+	elseif I.phase == "hold" then
+		if not I.held then
+			if x - I.t < .3 then
+				return true;
+			end;
+			pcall(function()
+				keypress(84);
+			end);
+			I.held, I.t = true, x;
+		elseif x - I.t >= 1.5 then
+			pcall(function()
+				keyrelease(84);
+			end);
+			I.held = false;
+			I.i = I.i + 1;
+			I.phase, I.t = "go", x + .5;
+		end;
+	end;
+	return true;
+end;
+function Y.scrOffset(x)
+	if i.scrOffX then
+		return true;
+	end;
+	local I = Z:GetMouse();
+	if not i.scrCalT then
+		i.scrMx, i.scrMy = I.X, I.Y;
+		pcall(function()
+			mousemoveabs(700, 450);
+		end);
+		i.scrCalT = x;
+		return false;
+	end;
+	if x - i.scrCalT < .12 then
+		return false;
+	end;
+	i.scrOffX, i.scrOffY = 700 - I.X, 450 - I.Y;
+	pcall(function()
+		mousemoveabs(i.scrMx + i.scrOffX, i.scrMy + i.scrOffY);
+	end);
+	return true;
+end;
+function Y.dlgRoot()
+	local x = Z:FindFirstChild("PlayerGui");
+	local I = x and x:FindFirstChild("ComponentsHolder");
+	return I and I:FindFirstChild("DialogueFrame") or nil;
+end;
+local function s(x, I)
+	I = I or 0;
+	if I > 6 then
+		return nil;
+	end;
+	for x, y in ipairs(x:GetChildren()) do
+		local G, Z;
+		pcall(function()
+			G = y.Text;
+		end);
+		pcall(function()
+			Z = y.AbsolutePosition;
+		end);
+		if G and (G ~= "" and Z) then
+			return G, Z;
+		end;
+		local j, i = s(y, I + 1);
+		if j then
+			return j, i;
+		end;
+	end;
+	return nil;
+end;
+function Y.dlgAnswers(x)
+	local I = {};
+	local y = x and x:FindFirstChild("ButtonHolder", true);
+	if not y then
+		local function I(x, y)
+			if y > 5 then
+				return nil;
+			end;
+			for x, G in ipairs(x:GetChildren()) do
+				if G.Name == "ButtonHolder" then
+					return G;
+				end;
+				local Z = I(G, y + 1);
+				if Z then
+					return Z;
+				end;
+			end;
+		end;
+		y = x and I(x, 0) or nil;
+	end;
+	if not y then
+		return I;
+	end;
+	for x, y in ipairs(y:GetChildren()) do
+		local G = s(y, 0);
+		local Z;
+		pcall(function()
+			Z = y.AbsolutePosition;
+		end);
+		if Z and ((Z.X > 0 or Z.Y > 0)) then
+			I[#I + 1] = { text = G or y.Name, x = Z.X, y = Z.Y };
+		end;
+	end;
+	return I;
+end;
+function Y.dlgContinue(x)
+	local I;
+	local function y(x, I)
+		if I > 5 then
+			return nil;
+		end;
+		for x, G in ipairs(x:GetChildren()) do
+			if G.Name == "DialogueHolder" then
+				return G;
+			end;
+			local Z = y(G, I + 1);
+			if Z then
+				return Z;
+			end;
+		end;
+	end;
+	I = x and y(x, 0) or nil;
+	if not I then
+		return nil;
+	end;
+	local G, Z = s(I, 0);
+	if Z and Z.X < 0 then
+		return nil;
+	end;
+	return Z;
+end;
+function Y.dlgClickAt(x, I)
+	i.crowPicks = nil;
+	i.dlgClick = {
+			x = x + ((i.scrOffX or 0)),
+			y = I + ((i.scrOffY or 0)),
+			st = "move",
+			t = os.clock(),
+		};
+end;
+function Y.dlgTalk(x, I)
+	local y = i.dlg;
+	if not y or y.want ~= x then
+		y = { want = x, t = I, tries = 0 };
+		i.dlg = y;
+	end;
+	if not Y.focused(I) then
+		return "working";
+	end;
+	if not Y.scrOffset(I) then
+		return "working";
+	end;
+	local G = Y.dlgRoot();
+	if not G then
+		if y.opened then
+			i.dlg = nil;
+			return "done";
+		end;
+		if I - y.t > 20 then
+			i.dlg = nil;
+			return "failed";
+		end;
+		if I - ((y.openT or 0)) > 2.5 then
+			y.openT = I;
+			y.tries = y.tries + 1;
+			pcall(function()
+				keypress(84);
+			end);
+			i.dlgKeyUp = I + .15;
+		end;
+		return "working";
+	end;
+	y.opened = true;
+	if not x then
+		return "done";
+	end;
+	if I - ((y.clickT or 0)) < .8 then
+		return "working";
+	end;
+	y.clickT = I;
+	for I, G in ipairs(Y.dlgAnswers(G)) do
+		if G.text == x then
+			Y.dlgClickAt(G.x + 40, G.y + 14);
+			y.clicked = true;
+			return "working";
+		end;
+	end;
+	local Z = Y.dlgContinue(G);
+	if Z then
+		Y.dlgClickAt(Z.X + 12, Z.Y + 8);
+	end;
+	if I - y.t > 25 then
+		i.dlg = nil;
+		return "failed";
+	end;
+	return "working";
+end;
+function Y.dlgRelease(x)
+	local I = i.dlgClick;
+	if I then
+		if I.st == "move" then
+			pcall(function()
+				mousemoveabs(I.x, I.y);
+			end);
+			I.st, I.t = "press", x;
+		elseif I.st == "press" and x - I.t > .1 then
+			pcall(function()
+				mouse1press();
+			end);
+			i.dlgUp = x + .08;
+			I.st, I.t = "down", x;
+		elseif I.st == "down" and x - I.t > .3 then
+			i.dlgClick = nil;
+		end;
+	end;
+	if i.dlgUp and x >= i.dlgUp then
+		i.dlgUp = nil;
+		pcall(function()
+			mouse1release();
+		end);
+	end;
+	if i.crowKeyUp and x >= i.crowKeyUp.t then
+		local x = i.crowKeyUp.vk;
+		i.crowKeyUp = nil;
+		pcall(function()
+			keyrelease(x);
+		end);
+	end;
+	if i.dlgKeyUp and x >= i.dlgKeyUp then
+		i.dlgKeyUp = nil;
+		pcall(function()
+			keyrelease(84);
+		end);
+	end;
+end;
+function Y.acoPath(x, I)
+	local y = #I;
+	if y == 0 then
+		return {};
+	end;
+	if y == 1 then
+		return { 1 };
+	end;
+	local G = { [0] = x };
+	for x = 1, y, 1 do
+		G[x] = I[x];
+	end;
+	local Z = {};
+	for x = 0, y, 1 do
+		Z[x] = {};
+		for I = 0, y, 1 do
+			local y, j = G[x], G[I];
+			local i, r, Y = y.X - j.X, y.Y - j.Y, y.Z - j.Z;
+			Z[x][I] = math.max(math.sqrt((i * i + r * r) + Y * Y), .01);
+		end;
+	end;
+	local function j(x)
+		local I, y = 0, 0;
+		for G = 1, #x, 1 do
+			I = I + Z[y][x[G]];
+			y = x[G];
+		end;
+		return I;
+	end;
+	local i, r, Y = {}, {}, 0;
+	for x = 1, y, 1 do
+		local I, G = nil, math.huge;
+		for x = 1, y, 1 do
+			if not r[x] and Z[Y][x] < G then
+				G = Z[Y][x];
+				I = x;
+			end;
+		end;
+		r[I] = true;
+		i[#i + 1] = I;
+		Y = I;
+	end;
+	local e = j(i);
+	local C = 1 / ((y * e));
+	local v = {};
+	for x = 0, y, 1 do
+		v[x] = {};
+		for I = 0, y, 1 do
+			v[x][I] = C;
+		end;
+	end;
+	local U, F, S, h = 1, 3, .2, .9;
+	local d = math.min(20, y + 5);
+	local u = y <= 8 and 40 or (y <= 20 and 30 or 15);
+	for x = 1, u, 1 do
+		for x = 1, d, 1 do
+			local I, G, r = {}, {}, 0;
+			for x = 1, y, 1 do
+				local j;
+				if math.random() < h then
+					local x = -1;
+					for y = 1, y, 1 do
+						if not I[y] then
+							local I = v[r][y] ^ U * ((1 / Z[r][y])) ^ F;
+							if I > x then
+								x = I;
+								j = y;
+							end;
+						end;
+					end;
+				else
+					local x, G = 0, {};
+					for y = 1, y, 1 do
+						if not I[y] then
+							G[y] = v[r][y] ^ U * ((1 / Z[r][y])) ^ F;
+							x = x + G[y];
+						end;
+					end;
+					local i = math.random() * x;
+					for x = 1, y, 1 do
+						if G[x] then
+							i = i - G[x];
+							if i <= 0 then
+								j = x;
+								break;
+							end;
+						end;
+					end;
+					if not j then
+						for x = 1, y, 1 do
+							if not I[x] then
+								j = x;
+								break;
+							end;
+						end;
+					end;
+				end;
+				v[r][j] = ((1 - S)) * v[r][j] + S * C;
+				I[j] = true;
+				G[#G + 1] = j;
+				r = j;
+			end;
+			local Y = j(G);
+			if Y < e then
+				e = Y;
+				i = G;
+			end;
+		end;
+		local I = 0;
+		for x = 1, #i, 1 do
+			local y = i[x];
+			v[I][y] = ((1 - S)) * v[I][y] + S / e;
+			I = y;
+		end;
+	end;
+	return i, e;
+end;
+function Y.routeStart(x)
+	local I, y = Y.char();
+	if not y or not x or #x == 0 then
+		return false;
+	end;
+	local G, Z = {}, {};
+	for I = 1, #x, 1 do
+		local y, j = pcall(x[I].get);
+		if y and j then
+			G[#G + 1] = j;
+			Z[#Z + 1] = x[I];
+		end;
+	end;
+	if #G == 0 then
+		return false;
+	end;
+	local j, r = Y.acoPath(y.Position, G);
+	local e = {};
+	for x = 1, #j, 1 do
+		e[x] = Z[j[x]];
+	end;
+	i.route = {
+			list = e,
+			i = 1,
+			t = os.clock(),
+			tDown = false,
+			nextT = 0,
+		};
+	Y.notify(string.format("boss drops: %d, path %.0f studs", #e, r or 0), 3);
+	return true;
+end;
+function Y.routeStop()
+	local x = i.route;
+	i.route = nil;
+	if x and x.tDown then
+		pcall(function()
+			keyrelease(84);
+		end);
+	end;
+end;
+function Y.routeStep(x)
+	local I = i.route;
+	if not I then
+		return false;
+	end;
+	local y, G = Y.char();
+	if not G then
+		return true;
+	end;
+	if Y.focused(x) and x >= I.nextT then
+		I.nextT = x + i.RouteTap;
+		I.tDown = not I.tDown;
+		pcall(function()
+			if I.tDown then
+				keypress(84);
+			else
+				keyrelease(84);
+			end;
+		end);
+	end;
+	local Z = I.list[I.i];
+	if not Z then
+		Y.routeStop();
+		return false;
+	end;
+	local j;
+	if not pcall(function()
+		j = Z.get();
+	end) or not j then
+		I.i = I.i + 1;
+		I.t = x;
+		I.arrive = nil;
+		return true;
+	end;
+	local r = G.Position;
+	local e, C, v = j.X - r.X, ((j.Y + 2.5)) - r.Y, j.Z - r.Z;
+	local U = math.sqrt((e * e + C * C) + v * v);
+	if U <= 3 then
+		I.i = I.i + 1;
+		I.t = x;
+		if not I.list[I.i] then
+			pcall(function()
+				G.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+			end);
+		end;
+		return true;
+	end;
+	if U > i.WarpAbove then
+		pcall(function()
+			TS:Create(G, TweenInfo.new(0.5), {CFrame = CFrame.new(j.X, j.Y + 3, j.Z)}):Play()
+			G.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+		end);
+	else
+		local x = i.MoveSpeed;
+		if not I.list[I.i + 1] then
+			x = math.min(U * 5.0, i.MoveSpeed);
+		end;
+		local y = x / U;
+		pcall(function()
+			G.AssemblyLinearVelocity = Vector3.new(e * y, C * y, v * y);
+		end);
+	end;
+	if x - I.t > 5 then
+		I.i = I.i + 1;
+		I.t = x;
+	end;
+	return true;
+end;
+function Y.activeQuest()
+	local x = I:FindFirstChild("Player_Service");
+	local y = x and x:FindFirstChild("Data");
+	local G = y and y:FindFirstChild(Z.Name);
+	if not G then
+		return nil;
+	end;
+	local j = G:FindFirstChild("slotEquipped");
+	j = j and j.Value or 1;
+	local i = G:FindFirstChild("slots");
+	local r = i and i:FindFirstChild("Slot" .. tostring(math.floor(j)));
+	local Y = r and r:FindFirstChild("Quests");
+	local e = Y and Y:FindFirstChild("Holder");
+	if not e then
+		return nil;
+	end;
+	local C = nil;
+	local v = e:GetChildren();
+	for x = 1, #v, 1 do
+		local I = v[x]:FindFirstChild("Tasks");
+		if I then
+			local y, G = {}, true;
+			local Z = I:GetChildren();
+			for x = 1, #Z, 1 do
+				local I = Z[x]:FindFirstChild("Value");
+				local j = Z[x]:FindFirstChild("Max");
+				local i;
+				local r = Z[x]:FindFirstChild("Code");
+				if r then
+					local x = r.Value;
+					if type(x) == "string" and string.match(x, "^[%w ]+$") then
+						i = x;
+					end;
+				end;
+				y[#y + 1] = {
+						Name = Z[x].Name,
+						Value = I and I.Value or 0,
+						Max = j and j.Value or 1,
+						Code = i,
+					};
+				if ((I and I.Value or 0)) < ((j and j.Value or 1)) then
+					G = false;
+				end;
+			end;
+			local j = v[x]:FindFirstChild("QuestString");
+			local i = nil;
+			if j then
+				local x = j.Value;
+				if type(x) == "string" and #x > 0 then
+					local I = true;
+					for y = 1, #x, 1 do
+						local G = string.byte(x, y);
+						if G < 32 or G > 126 then
+							I = false;
+							break;
+						end;
+					end;
+					if I then
+						i = x;
+					end;
+				end;
+			end;
+			local r = {
+					Name = v[x].Name,
+					Desc = i,
+					Id = v[x].Name,
+					Tasks = y,
+					Complete = G,
+				};
+			if not G then
+				return r;
+			end;
+			if not C then
+				C = r;
+			end;
+		end;
+	end;
+	return C;
+end;
+local t = {
+		"guard",
+		"guards",
+		"subordinate",
+		"subordinates",
+		"minion",
+		"minions",
+		"underling",
+		"underlings",
+		"escort",
+	};
+function Y.questPickups()
+	local x = {};
+	for I, y in ipairs(G:GetChildren()) do
+		if string.match(y.Name, "%d+$") then
+			local I;
+			if y.ClassName == "Part" or y.ClassName == "MeshPart" then
+				I = y;
+			else
+				I = y:FindFirstChildWhichIsA("BasePart");
+			end;
+			if I then
+				local G = false;
+				for x, I in ipairs(y:GetDescendants()) do
+					if I.ClassName == "ProximityPrompt" then
+						G = true;
+						break;
+					end;
+				end;
+				if G then
+					x[#x + 1] = { Name = y.Name, Root = I, Node = y };
+				end;
+			end;
+		end;
+	end;
+	return x;
+end;
+local p = {
+		"defeated",
+		"remaining",
+		"slain",
+		"killed",
+		"eliminated",
+		"defeat",
+		"hunted",
+		"fell ",
+	};
+local m = {
+		"found",
+		"collected",
+		"delivered",
+		"escorted",
+		"caught",
+		"return",
+		"retrieve",
+		"recovered",
+		"gathered",
+	};
+function Y.taskKind(x)
+	if not x then
+		return "unknown";
+	end;
+	local I = " " .. (string.lower(x) .. " ");
+	for x, y in ipairs(m) do
+		if string.find(I, y, 1, true) then
+			return "fetch";
+		end;
+	end;
+	for x, y in ipairs(p) do
+		if string.find(I, y, 1, true) then
+			return "kill";
+		end;
+	end;
+	return "unknown";
+end;
+function Y.questMatchesEntry(x, I)
+	if not x or not I then
+		return false;
+	end;
+	local function y(x)
+		local I = {};
+		for x in string.gmatch(string.lower(x), "%a+") do
+			if #x >= 4 then
+				I[x] = true;
+			end;
+		end;
+		return I;
+	end;
+	local G, Z = y(x), y(I);
+	for x in pairs(G) do
+		if Z[x] then
+			return true;
+		end;
+	end;
+	return false;
+end;
+function Y.codeToMob(x)
+	if not x or x == "" then
+		return nil;
+	end;
+	local I = string.gsub(x, "(%l)(%u)", "%1 %2");
+	I = string.gsub(I, " Sub$", " Subordinate");
+	local y = string.lower(I);
+	local G = string.gsub(y, " ", "");
+	for x, I in ipairs({ r.Mobs, r.Bosses }) do
+		for x = 1, #I, 1 do
+			local Z = string.lower(I[x]);
+			if Z == y or string.gsub(Z, " ", "") == G then
+				return I[x];
+			end;
+		end;
+	end;
+	return nil;
+end;
+function Y.questCompleted(x)
+	local y = I:FindFirstChild("Player_Service");
+	local G = y and y:FindFirstChild("Data");
+	local j = G and G:FindFirstChild(Z.Name);
+	if not j then
+		return false;
+	end;
+	local i = j:FindFirstChild("slotEquipped");
+	local r = j:FindFirstChild("slots");
+	r = r and r:FindFirstChild("Slot" .. tostring(math.floor(i and i.Value or 1)));
+	local Y = r and r:FindFirstChild("Quests");
+	local e = Y and Y:FindFirstChild("Completed");
+	return e ~= nil and e:FindFirstChild(x) ~= nil;
+end;
+function Y.questLastAge()
+	local x = I:FindFirstChild("Player_Service");
+	local y = x and x:FindFirstChild("Data");
+	local G = y and y:FindFirstChild(Z.Name);
+	if not G then
+		return nil;
+	end;
+	local j = G:FindFirstChild("slotEquipped");
+	local i = G:FindFirstChild("slots");
+	i = i and i:FindFirstChild("Slot" .. tostring(math.floor(j and j.Value or 1)));
+	local r = i and i:FindFirstChild("Quests");
+	local Y = r and r:FindFirstChild("LastTime");
+	if not Y then
+		return nil;
+	end;
+	return os.time() - Y.Value;
+end;
+function Y.optLevel(x)
+	if type(x) ~= "string" then
+		return nil;
+	end;
+	local I = string.match(x, "%(Lv%s*(%d+)%)");
+	return I and tonumber(I) or nil;
+end;
+function Y.questOpt(x)
+	if not x then
+		return nil;
+	end;
+	if i.QuestPick == "boss" then
+		return x.BossOption or x.QuestOption;
+	end;
+	return x.QuestOption or x.BossOption;
+end;
+function Y.pickQuest(x)
+	i.qBack = i.qBack or {};
+	i.qSent = i.qSent or {};
+	local I;
+	local y = i.QuestSel or {};
+	local G = #y;
+	local Z = 1;
+	if i.lastDoneKey then
+		local x = r.Quests[i.lastDoneKey];
+		local I = x and ((x.QuestOption or x.BossOption));
+		for x = 1, G, 1 do
+			local G = y[x];
+			local j = r.Quests[G];
+			local Y = G == i.lastDoneKey;
+			if not Y and (j and (j.AutoDeliver and I)) then
+				for x, y in ipairs(r.DeliverGivers) do
+					if y.QuestOption == I then
+						Y = true;
+						break;
+					end;
+				end;
+			end;
+			if Y then
+				Z = x + 1;
+				break;
+			end;
+		end;
+	end;
+	for j = 0, G - 1, 1 do
+		local e = y[((((Z - 1) + j)) % math.max(G, 1)) + 1];
+		local C = r.Quests[e];
+		local v = i.qSent[e];
+		if v and x - v > 6 then
+			i.qSent[e] = nil;
+			i.qBack[e] = x + 60;
+		end;
+		if C and C.AutoDeliver then
+			local y, G = Y.pickDelivery(x);
+			if y then
+				return C, e;
+			end;
+			if G and ((not I or G < I)) then
+				I = G;
+			end;
+		elseif C and (not C.Auto and C.Pos) then
+			local y = Y.questOpt(C);
+			if y and not Y.questCompleted(y) then
+				local y = i.qBack[e];
+				if not y or x >= y then
+					return C, e;
+				end;
+				if not I or y < I then
+					I = y;
+				end;
+			end;
+		end;
+	end;
+	return nil, I;
+end;
+function Y.entryForQuest(x)
+	if not x then
+		return nil;
+	end;
+	if x.Desc then
+		for I, y in pairs(r.Quests) do
+			if y.QuestOption == x.Desc or y.BossOption == x.Desc then
+				return y, I;
+			end;
+		end;
+	end;
+	for I, y in ipairs(i.QuestSel or {}) do
+		local G = r.Quests[y];
+		if G and (not G.Auto and Y.questMatchesEntry(x.Name, y)) then
+			return G, y;
+		end;
+	end;
+	return nil;
+end;
+function Y.pickDelivery(x)
+	i.delivBack = i.delivBack or {};
+	local I;
+	for y, G in ipairs(r.DeliverGivers) do
+		local Z = G.QuestOption;
+		local j = i.delivSent and i.delivSent[Z];
+		if j and (x - j) > 6 then
+			i.delivSent[Z] = nil;
+			local I = ((i.delivFails or {}))[Z] or 0;
+			i.delivFails = i.delivFails or {};
+			i.delivFails[Z] = I + 1;
+			i.delivBack[Z] = x + 8;
+		end;
+		if not Y.questCompleted(Z) then
+			local y = i.delivBack[Z];
+			if not y or x >= y then
+				return G;
+			end;
+			if not I or y < I then
+				I = y;
+			end;
+		end;
+	end;
+	return nil, I;
+end;
+function Y.deliverStep(x, I, y, G, Z)
+	if i.cur then
+		i.cur = nil;
+		Y.aimRelease();
+		pcall(Y.skillsRelease);
+		if Y.clickRelease then
+			pcall(Y.clickRelease);
+		end;
+	end;
+	local j = x .. ("|" .. I);
+	if i.deliverKey ~= j then
+		i.deliverKey = j;
+		i.deliverTries = 0;
+		i.deliverAt = nil;
+	end;
+	local r = Y.followNpc(y.npc, y.pos, Z);
+	if r > 8 then
+		i.deliverAt = nil;
+		return;
+	end;
+	i.deliverAt = i.deliverAt or (Z + i.SettleT);
+	if Z < i.deliverAt then
+		return;
+	end;
+	if not Y.remote then
+		local x = Y.dlgTalk(y.answer, Z);
+		if x == "failed" and Z - ((i.deliverWarn or 0)) > 12 then
+			i.deliverWarn = Z;
+			Y.notify("could not hand \'" .. (I .. ("\' to " .. (y.npc .. " - do it by hand"))), 6);
+		end;
+		return;
+	end;
+	if (Z - ((i.deliverT or 0))) < 3 then
+		return;
+	end;
+	i.deliverT = Z;
+	i.deliverTries = ((i.deliverTries or 0)) + 1;
+	if i.deliverTries > 4 then
+		if Z - ((i.deliverWarn or 0)) > 10 then
+			i.deliverWarn = Z;
+			Y.notify("\'" .. (I .. "\' not accepted - missing the item?"), 6);
+		end;
+		return;
+	end;
+	pcall(function()
+		Y.remote:FireServer("QuestProgress", x, I);
+	end);
+	Y.notify("handing in: " .. I, 3);
+end;
+function Y.questTarget(x)
+	if not x then
+		return nil;
+	end;
+	local I = string.lower(x.Name or "");
+	if x.Desc then
+		I = I .. (" " .. string.lower(x.Desc));
+	end;
+	for y = 1, #x.Tasks, 1 do
+		I = I .. (" " .. string.lower(x.Tasks[y].Name));
+	end;
+	I = " " .. (string.gsub(I, "[^%a]+", " ") .. " ");
+	local y = false;
+	for x, G in ipairs(t) do
+		if string.find(I, " " .. (G .. " "), 1, true) then
+			y = true;
+			break;
+		end;
+	end;
+	local G = { lost = true };
+	local function Z(x)
+		local y, G = 0, 0;
+		for x in string.gmatch(string.lower(x), "%a+") do
+			G = G + 1;
+			if #x >= 4 then
+				if string.find(I, " " .. (x .. " "), 1, true) or string.find(I, " " .. (x .. "s "), 1, true) then
+					y = y + 1;
+				end;
+			end;
+		end;
+		return y, G;
+	end;
+	local j, i, Y = nil, 0, -1;
+	local e = { r.Mobs, r.Bosses };
+	for x = 1, #e, 1 do
+		local I = e[x];
+		for x = 1, #I, 1 do
+			local r = I[x];
+			if r ~= "All Regular Mobs" and (r ~= "All Bosses" and not G[string.lower(r)]) then
+				local x = Z(r);
+				if x > 0 then
+					local I = string.find(string.lower(r), "subordinate", 1, true) ~= nil;
+					local G = x * 10;
+					if y and I then
+						G = G + 5;
+					end;
+					if (not y) and (not I) then
+						G = G + 5;
+					end;
+					if x > i or (x == i and G > Y) then
+						j, i, Y = r, x, G;
+					end;
+				end;
+			end;
+		end;
+	end;
+	return j;
+end;
+function Y.chests()
+	local x = {};
+	local I = G:FindFirstChild("Chests");
+	if not I then
+		return x;
+	end;
+	local y = I:GetChildren();
+	for I = 1, #y, 1 do
+		local G = y[I];
+		local Z;
+		if G.ClassName == "Part" or G.ClassName == "MeshPart" then
+			Z = G;
+		else
+			Z = G:FindFirstChild("RootPart") or G:FindFirstChildWhichIsA("BasePart");
+		end;
+		if Z then
+			x[#x + 1] = { Name = G.Name, Pos = Z.Position };
+		end;
+	end;
+	return x;
+end;
+local z = "__s2pool_slayers2";
+local l = 48;
+do
+	local x = rawget(_G, z);
+	_G[z] = nil;
+	local I;
+	if type(x) == "table" and (#x == l and (type(x[1]) == "table" and (x[1].box and x[1].tag))) then
+		x[1].box.Visible = false;
+		x[1].tag.Visible = false;
+		I = x;
+	end;
+	if I then
+		i.pool = I;
+		for x = 1, l, 1 do
+			local y = I[x];
+			y.vis = false;
+			y.box.Visible = false;
+			y.tag.Visible = false;
+		end;
+		_G[z] = I;
+	else
+		for x = 1, l, 1 do
+			local I = Drawing.new("Square");
+			I.Thickness = 1;
+			I.Filled = false;
+			I.Visible = false;
+			local y = Drawing.new("Text");
+			y.Size = 13;
+			y.Center = true;
+			y.Outline = true;
+			y.Visible = false;
+			i.pool[x] = { box = I, tag = y };
+		end;
+		_G[z] = i.pool;
+	end;
+end;
+local f = {};
+i.espList = function()
+		return f;
+	end;
+local A = {
+		Color3.fromRGB(230, 230, 230),
+		Color3.fromRGB(255, 90, 90),
+		Color3.fromRGB(255, 215, 90),
+		Color3.fromRGB(255, 130, 200),
+		Color3.fromRGB(170, 130, 255),
+		Color3.fromRGB(140, 255, 200),
+		Color3.fromRGB(255, 240, 90),
+		Color3.fromRGB(255, 40, 70),
+		Color3.fromRGB(120, 255, 80),
+		Color3.fromRGB(60, 255, 150),
+	};
+function Y.espOn()
+	return i.EspMobs or i.EspBosses or i.EspChests or i.EspCrystals or i.EspLily or i.EspHorses or i.EspLevers or i.EspMuzan or i.EspFruits or i.EspPlants;
+end;
+function Y.espClear()
+	local x = i.pool;
+	if not x then
+		return;
+	end;
+	for I = 1, #x, 1 do
+		local y = x[I];
+		y.box.Visible = false;
+		y.tag.Visible = false;
+		y.vis, y.bx, y.by, y.bw, y.bh, y.tx, y.ty, y.text, y.col = false, nil, nil, nil, nil, nil, nil, nil, nil;
+	end;
+	f = {};
+	Y.npcCache = nil;
+end;
+function Y.espBuild()
+	local x, I = Y.char();
+	if not I then
+		f = {};
+		return;
+	end;
+	local y = I.Position;
+	local Z = i.EspDist;
+	local j = {};
+	if i.EspMobs or i.EspBosses then
+		local x = os.clock();
+		if not Y.npcCache or (x - Y.npcCacheT) > 2.0 then
+			Y.npcCache = Y.scan(nil, nil);
+			Y.npcCacheT = x;
+		end;
+		local I = Y.npcCache;
+		for x = 1, #I, 1 do
+			if #j >= l then
+				break;
+			end;
+			local G = I[x];
+			local r = (G.Boss and i.EspBosses) or ((not G.Boss) and i.EspMobs);
+			if r and Y.npcAlive(G, .6) then
+				local x, I = nil, 0;
+				pcall(function()
+					I = G.Hum.Health;
+					x = ((G.Root.Position - y)).Magnitude;
+				end);
+				if x and (I > 0 and x <= Z) then
+					j[#j + 1] = {
+							kind = "m",
+							npc = G,
+							root = G.Root,
+							text = G.Boss and (G.Name .. (" " .. (math.floor(I) .. "hp"))) or (G.Name .. (" " .. (math.floor(x) .. "m"))),
+							col = G.Boss and 2 or 1,
+						};
+				end;
+			end;
+		end;
+	end;
+	if i.EspChests then
+		local x = Y.chests();
+		for I = 1, #x, 1 do
+			if #j >= l then
+				break;
+			end;
+			local G = ((x[I].Pos - y)).Magnitude;
+			if G <= Z then
+				j[#j + 1] = {
+						kind = "p",
+						pos = x[I].Pos,
+						text = x[I].Name,
+						col = 3,
+					};
+			end;
+		end;
+	end;
+	if i.EspCrystals or i.EspLily then
+		local x = G:FindFirstChild("Debree");
+		if x then
+			if i.EspLily then
+				local I = x:GetChildren();
+				for x = 1, #I, 1 do
+					if #j >= l then
+						break;
+					end;
+					if string.find(string.lower(I[x].Name), "spider lily", 1, true) then
+						local G = I[x]:FindFirstChildWhichIsA("BasePart");
+						if G then
+							local x = ((G.Position - y)).Magnitude;
+							if x <= Z then
+								j[#j + 1] = {
+										kind = "p",
+										pos = G.Position,
+										text = "Spider Lily",
+										col = 4,
+									};
+							end;
+						end;
+					end;
+				end;
+			end;
+			local I = x:FindFirstChild("Regions");
+			if i.EspCrystals and I then
+				local x = I:GetChildren();
+				for I = 1, #x, 1 do
+					if #j >= l then
+						break;
+					end;
+					local G = x[I]:GetChildren();
+					for i = 1, #G, 1 do
+						if string.find(string.lower(G[i].Name), "spawncrystal", 1, true) then
+							local r = G[i]:FindFirstChild("Root") or G[i]:FindFirstChildWhichIsA("BasePart");
+							if r then
+								local G = ((r.Position - y)).Magnitude;
+								if G <= Z then
+									j[#j + 1] = {
+											kind = "p",
+											pos = r.Position,
+											text = x[I].Name,
+											col = 5,
+										};
+								end;
+							end;
+							break;
+						end;
+					end;
+				end;
+			end;
+		end;
+	end;
+	if i.EspHorses then
+		local x = Y.scan("horse", false);
+		for I = 1, #x, 1 do
+			if #j >= l then
+				break;
+			end;
+			local G = ((x[I].Root.Position - y)).Magnitude;
+			if G <= Z then
+				j[#j + 1] = {
+						kind = "p",
+						pos = x[I].Root.Position,
+						text = "Horse",
+						col = 6,
+					};
+			end;
+		end;
+	end;
+	if i.EspLevers and #j < l then
+		local x = G:FindFirstChild("Map");
+		local I = x and x:FindFirstChild("Puzzles");
+		if I then
+			for x, I in ipairs(I:GetDescendants()) do
+				if #j >= l then
+					break;
+				end;
+				if ((I.ClassName == "MeshPart" or I.ClassName == "Part")) and string.find(string.lower(I.Name), "lever", 1, true) then
+					local x = ((I.Position - y)).Magnitude;
+					if x <= Z then
+						j[#j + 1] = {
+								kind = "p",
+								pos = I.Position,
+								text = "LEVER " .. (math.floor(x) .. "m"),
+								col = 7,
+							};
+					end;
+				end;
+			end;
+		end;
+	end;
+	if i.EspMuzan and #j < l then
+		local x = {};
+		for I, y in ipairs({ G:FindFirstChild("Humanoids"), G:FindFirstChild("Debree") }) do
+			local G = y and y:FindFirstChild("Regions");
+			for I, y in ipairs(G and G:GetChildren() or {}) do
+				x[#x + 1] = y:FindFirstChild("ActiveNpcs");
+				x[#x + 1] = y:FindFirstChild("StationaryNpcs");
+			end;
+		end;
+		for x, I in ipairs(x) do
+			if #j >= l then
+				break;
+			end;
+			for x, I in ipairs(I and I:GetChildren() or {}) do
+				if #j >= l then
+					break;
+				end;
+				if string.find(string.lower(I.Name), "muzan", 1, true) then
+					local x = I:FindFirstChild(I.Name) or I:FindFirstChildOfClass("Model");
+					local G = I:FindFirstChild("HumanoidRootPart") or (x and x:FindFirstChild("HumanoidRootPart")) or I:FindFirstChildWhichIsA("BasePart");
+					local i = I:FindFirstChildOfClass("Humanoid") or (x and x:FindFirstChildOfClass("Humanoid"));
+					if G then
+						local x = ((G.Position - y)).Magnitude;
+						if x <= Z then
+							local y = "";
+							if i then
+								y = " " .. (math.floor(i.Health) .. ("/" .. math.floor(i.MaxHealth)));
+							end;
+							j[#j + 1] = {
+									kind = "p",
+									pos = G.Position,
+									text = I.Name .. (y .. (" " .. (math.floor(x) .. "m"))),
+									col = 8,
+								};
+						end;
+					end;
+				end;
+			end;
+		end;
+	end;
+	if i.EspPlants and #j < l then
+		local x = G:FindFirstChild("Debree");
+		for x, I in ipairs(x and x:GetChildren() or {}) do
+			if #j >= l then
+				break;
+			end;
+			local G = string.lower(I.Name);
+			if ((string.find(G, "flower", 1, true) or string.find(G, "herb", 1, true))) and not string.find(G, "spider lily", 1, true) then
+				local x = I;
+				if I.ClassName ~= "Part" and I.ClassName ~= "MeshPart" then
+					x = I:FindFirstChildWhichIsA("BasePart");
+				end;
+				if x then
+					local G = ((x.Position - y)).Magnitude;
+					if G <= Z then
+						j[#j + 1] = {
+								kind = "p",
+								pos = x.Position,
+								text = I.Name .. (" " .. (math.floor(G) .. "m")),
+								col = 10,
+							};
+					end;
+				end;
+			end;
+		end;
+		local I = G:FindFirstChild("Map");
+		I = I and I:FindFirstChild("Map");
+		local i = I and I:FindFirstChild("Assets");
+		local r = i and i:FindFirstChild("Clovers");
+		for x, I in ipairs(r and r:GetChildren() or {}) do
+			if #j >= l then
+				break;
+			end;
+			local G = I;
+			if I.ClassName ~= "MeshPart" then
+				G = I:FindFirstChildWhichIsA("BasePart");
+			end;
+			if G then
+				local x = ((G.Position - y)).Magnitude;
+				if x <= Z then
+					j[#j + 1] = {
+							kind = "p",
+							pos = G.Position,
+							text = "Clover " .. (math.floor(x) .. "m"),
+							col = 10,
+						};
+				end;
+			end;
+		end;
+	end;
+	if i.EspFruits and #j < l then
+		local x = {
+				"apple",
+				"banana",
+				"grape",
+				"fruit",
+				"peach",
+				"mango",
+				"melon",
+				"berry",
+				"cherry",
+				"kiwi",
+				"orange",
+				"pineapple",
+				"coconut",
+			};
+		for I, G in ipairs(G:GetChildren()) do
+			if #j >= l then
+				break;
+			end;
+			local i = string.lower(G.Name);
+			local r = false;
+			for x, I in ipairs(x) do
+				if string.find(i, I, 1, true) then
+					r = true;
+					break;
+				end;
+			end;
+			if r then
+				local x = G;
+				if G.ClassName ~= "Part" and G.ClassName ~= "MeshPart" then
+					x = G:FindFirstChildWhichIsA("BasePart");
+				end;
+				if x then
+					local I = ((x.Position - y)).Magnitude;
+					if I <= Z then
+						j[#j + 1] = {
+								kind = "p",
+								pos = x.Position,
+								text = G.Name .. (" " .. (math.floor(I) .. "m")),
+								col = 9,
+							};
+					end;
+				end;
+			end;
+		end;
+	end;
+	f = j;
+end;
+local J = { off = 260, at = 0 };
+function J.calibrate()
+	J.at = tick();
+	local x, I = pcall(function()
+			return workspace.CurrentCamera.ViewportSize;
+		end);
+	if not ((x and (I and I.X > 1))) then
+		return;
+	end;
+	local y, G = pcall(function()
+			return (game:GetService("Players")).LocalPlayer.PlayerGui:GetChildren();
+		end);
+	for x, y in ipairs(y and G or {}) do
+		local G, Z = pcall(function()
+				return y.Address;
+			end);
+		if G and (type(Z) == "number" and Z > 0) then
+			for x = 128, 512, 4 do
+				local y, G = pcall(memory_read, "float", Z + x);
+				local j, i = pcall(memory_read, "float", (Z + x) + 4);
+				if y and (j and (type(G) == "number" and (type(i) == "number" and (math.abs(G - I.X) < 1 and (i > I.Y - 120 and i <= I.Y))))) then
+					J.off = x;
+					return;
+				end;
+			end;
+		end;
+	end;
+end;
+local function L(x)
+	local I, y = pcall(function()
+			return x.AbsoluteSize;
+		end);
+	if I and (y and ((y.X >= .5 or y.Y >= .5))) then
+		return y;
+	end;
+	local G, Z = pcall(function()
+			return x.Address;
+		end);
+	if not ((G and (type(Z) == "number" and Z > 0))) then
+		return y;
+	end;
+	local function j()
+		local x, I = pcall(memory_read, "float", Z + J.off);
+		local y, G = pcall(memory_read, "float", (Z + J.off) + 4);
+		if x and (y and (type(I) == "number" and (type(G) == "number" and (I == I and (G == G and (I >= 0 and (G >= 0 and (I < 100000.0 and G < 100000.0)))))))) then
+			return { X = I, Y = G };
+		end;
+	end;
+	local i = j();
+	if i and ((i.X >= .5 or i.Y >= .5)) then
+		return i;
+	end;
+	if tick() - J.at > 1 then
+		pcall(J.calibrate);
+		return j() or y;
+	end;
+	return i or y;
+end;
+Y.absSize = L;
+local function P(x, I, y, G, Z, j, i, r, Y)
+	if x.bx ~= I or x.by ~= y then
+		x.bx, x.by = I, y;
+		x.box.Position = Vector2.new(I, y);
+	end;
+	if x.bw ~= G or x.bh ~= Z then
+		x.bw, x.bh = G, Z;
+		x.box.Size = Vector2.new(G, Z);
+	end;
+	if x.col ~= Y then
+		x.col = Y;
+		local I = A[Y] or A[1];
+		x.box.Color = I;
+		x.tag.Color = I;
+	end;
+	if x.tx ~= j or x.ty ~= i then
+		x.tx, x.ty = j, i;
+		x.tag.Position = Vector2.new(j, i);
+	end;
+	if x.text ~= r then
+		x.text = r;
+		x.tag.Text = r;
+	end;
+	if not x.vis then
+		x.vis = true;
+		x.box.Visible = true;
+		x.tag.Visible = true;
+	end;
+end;
+function Y.espDraw()
+	local x = i.pool;
+	if not x then
+		return;
+	end;
+	local I = 0;
+	for y = 1, #f, 1 do
+		if I >= l then
+			break;
+		end;
+		local G = f[y];
+		if G.kind == "m" then
+			local y = Y.npcAlive(G.npc, .6) and G.root.Position;
+			local Z, j, i, r;
+			if y then
+				Z, j = WorldToScreen(y + Vector3.new(0, 2.8, 0));
+				i, r = WorldToScreen(y - Vector3.new(0, 3.2, 0));
+			end;
+			if j and r then
+				I = I + 1;
+				local y = i.Y - Z.Y;
+				local j = y * .5;
+				P(x[I], Z.X - j * .5, Z.Y, j, y, Z.X, Z.Y - 15, G.text, G.col);
+			end;
+		else
+			local y, Z = WorldToScreen(G.pos);
+			if Z then
+				I = I + 1;
+				P(x[I], y.X - 7, y.Y - 7, 14, 14, y.X, y.Y - 17, G.text, G.col);
+			end;
+		end;
+	end;
+	for I = I + 1, l, 1 do
+		local y = x[I];
+		if y.vis then
+			y.vis = false;
+			y.box.Visible = false;
+			y.tag.Visible = false;
+		end;
+	end;
+end;
+function Y.espSync()
+	local x = Y.espOn() and true or false;
+	if i.espLive and not x then
+		Y.espClear();
+	end;
+	i.espLive = x;
+end;
+function Y.drawFrame()
+	if not i.espLive or not i.Running or not i.pool then
+		return;
+	end;
+	local x = os.clock();
+	if x - ((i.lastDraw or 0)) < .0166 then
+		return;
+	end;
+	i.lastDraw = x;
+	Y.mark("espdraw");
+	local I, y = pcall(Y.espDraw);
+	if not I and x - ((i.drawErrT or 0)) > 5 then
+		i.drawErrT = x;
+		Y.logErr("esp", y);
+	end;
+end;
+local c = {
+		One = 49,
+		Two = 50,
+		Three = 51,
+		Four = 52,
+		Five = 53,
+		Six = 54,
+		Seven = 55,
+		Eight = 56,
+		Nine = 57,
+		Zero = 48,
+	};
+function Y.onMenu()
+	if not i.win then
+		return false;
+	end;
+	local x, I = pcall(function()
+			return i.win:IsVisible();
+		end);
+	if not x or not I then
+		return false;
+	end;
+	return j ~= nil and j._overUI == true;
+end;
+function Y.inputHeld()
+	return i.lmbDown == true or i.rmbDown == true or i.dlgUp ~= nil or i.dlgClick ~= nil or (i.fish ~= nil and i.fish.lmb == true) or (i.bar ~= nil and i.bar.lmb == true);
+end;
+function Y.trainBar()
+	return i.AutoTrain == true and not Y.remote;
+end;
+function Y.fishWantsInput()
+	local x = i.bar;
+	if x and ((x.active or x.lmb)) then
+		return true;
+	end;
+	local I = i.fish;
+	if not i.AutoFish or not I then
+		return false;
+	end;
+	return I.lmb == true or I.keyUp ~= nil or I.phase == "game" or os.clock() < ((I.inputUntil or 0));
+end;
+function Y.wantsGameInput()
+	return Y.fishWantsInput() or i.dlg ~= nil or i.Mode ~= "off" or i.collect ~= nil or i.route ~= nil or i.AutoTrain == true;
+end;
+function Y.fishInputReady(x)
+	local I = i.fish;
+	I.inputUntil = x + .6;
+	return not ((j and j._inputSent == false));
+end;
+function Y.waterAreas(x)
+	local I = i.waterC;
+	if I and x - I.t < 5 then
+		return I.list;
+	end;
+	local y = {};
+	local Z = G:FindFirstChild("Map");
+	Z = Z and Z:FindFirstChild("Map");
+	local j = Z and Z:FindFirstChild("WatersFunctions");
+	local function r(x, I)
+		if I > 3 then
+			return;
+		end;
+		for x, G in ipairs(x:GetChildren()) do
+			if G.Name == "TouchPart" then
+				local x, I;
+				pcall(function()
+					x = G.Position;
+					I = G.Size;
+				end);
+				if x and (I and I.X > 4) then
+					y[#y + 1] = {
+							top = x.Y + I.Y * .5,
+							x1 = x.X - I.X * .5,
+							x2 = x.X + I.X * .5,
+							z1 = x.Z - I.Z * .5,
+							z2 = x.Z + I.Z * .5,
+						};
+				end;
+			end;
+			r(G, I + 1);
+		end;
+	end;
+	if j then
+		r(j, 0);
+	end;
+	i.waterC = { t = x, list = y };
+	return y;
+end;
+function Y.waterPoint(x, I)
+	local y, G = Y.char();
+	if not G then
+		return nil;
+	end;
+	local Z = G.Position;
+	local j = Y.waterAreas(x);
+	local i;
+	pcall(function()
+		i = G.CFrame.LookVector;
+	end);
+	local r = {};
+	if i then
+		local x = math.sqrt(i.X * i.X + i.Z * i.Z);
+		if x > .01 then
+			r[1] = { i.X / x, i.Z / x };
+		end;
+	end;
+	for x = 0, 7, 1 do
+		local I = (x * math.pi) / 4;
+		r[#r + 1] = { math.cos(I), math.sin(I) };
+	end;
+	local e = ((I or 0)) % #r;
+	for x = 1, #r, 1 do
+		local I = r[((((x - 1) + e)) % #r) + 1];
+		for x, y in ipairs({ 10, 16, 22 }) do
+			local G, i = Z.X + I[1] * y, Z.Z + I[2] * y;
+			for x, I in ipairs(j) do
+				local y = Z.Y - I.top;
+				if G > I.x1 and (G < I.x2 and (i > I.z1 and (i < I.z2 and (y > -4 and y < 45)))) then
+					return Vector3.new(G, I.top, i);
+				end;
+			end;
+		end;
+	end;
+	local C = r[(e % #r) + 1];
+	return Vector3.new(Z.X + C[1] * 16, Z.Y - 2, Z.Z + C[2] * 16);
+end;
+function Y.fishRod(x)
+	local I = i.fishRodC;
+	if x and (I and x - I.t < .5) then
+		return I.v;
+	end;
+	local y = Y.fishRodScan();
+	if x then
+		i.fishRodC = { t = x, v = y };
+	end;
+	return y;
+end;
+function Y.fishRodScan()
+	local x = Z.Character;
+	local I = x and x:FindFirstChild("Tool_Accessories");
+	if not I then
+		return nil;
+	end;
+	for x, I in ipairs(I:GetChildren()) do
+		if string.find(I.Name, "Fishing Rod", 1, true) then
+			return I;
+		end;
+	end;
+	return nil;
+end;
+function Y.fishRodKey()
+	local x = nil;
+	if not x then
+		local y = I:FindFirstChild("Player_Service");
+		local G = y and y:FindFirstChild("Data");
+		x = G and G:FindFirstChild(Z.Name);
+		local j = x and x:FindFirstChild("slotEquipped");
+		local i = x and x:FindFirstChild("slots");
+		x = i and i:FindFirstChild("Slot" .. tostring(math.floor(j and j.Value or 1)));
+	end;
+	local y = x and x:FindFirstChild("Inventory");
+	local G = y and y:FindFirstChild("Toolbar");
+	local j = y and y:FindFirstChild("Inventory");
+	if not G or not j then
+		return nil;
+	end;
+	local i = {};
+	for x, I in ipairs(j:GetChildren()) do
+		if string.find(I.Name, "Fishing Rod", 1, true) then
+			local x = I:FindFirstChild("Id");
+			if x then
+				i[x.Value] = true;
+			end;
+		end;
+	end;
+	for x, I in ipairs(G:GetChildren()) do
+		if i[I.Value] and c[I.Name] then
+			return c[I.Name];
+		end;
+	end;
+	return nil;
+end;
+function Y.fishGame(x)
+	local I = Z:FindFirstChild("PlayerGui");
+	local y = I and I:FindFirstChild("Misc");
+	if not y then
+		return nil;
+	end;
+	local G = y:GetChildren();
+	if #G == 0 then
+		return nil;
+	end;
+	for x, I in ipairs(G) do
+		for x, I in ipairs(I:GetChildren()) do
+			local y = I:FindFirstChild("tracker");
+			if y then
+				local x = I:FindFirstChild("Bar");
+				if x then
+					return y, x, I;
+				end;
+			end;
+		end;
+	end;
+	return nil;
+end;
+function Y.barMouse(x)
+	local I = i.bar;
+	if x and Y.onMenu() then
+		x = false;
+	end;
+	if not I or I.lmb == x then
+		return;
+	end;
+	I.lmb = x;
+	pcall(function()
+		if x then
+			mouse1press();
+		else
+			mouse1release();
+		end;
+	end);
+end;
+function Y.barStep(x, I)
+	local y = i.bar;
+	if not y then
+		y = { lmb = false };
+		i.bar = y;
+	end;
+	local G, Z, r;
+	if y.active or x - ((y.chk or 0)) >= .1 then
+		y.chk = x;
+		G, Z, r = Y.fishGame(x);
+	end;
+	if not G then
+		if y.active then
+			y.active = false;
+			Y.barMouse(false);
+		end;
+		return false;
+	end;
+	if not y.active then
+		y.active = true;
+		y.prevBy = nil;
+		y.games = ((y.games or 0)) + 1;
+	end;
+	if not Y.focused(x) then
+		Y.barMouse(false);
+		return true;
+	end;
+	local e, C;
+	pcall(function()
+		e = G.AbsolutePosition.Y + (L(G)).Y * .5;
+		C = Z.AbsolutePosition.Y + (L(Z)).Y * .5;
+	end);
+	if e and C then
+		local x = 0;
+		if y.prevBy and I > 0 then
+			x = ((C - y.prevBy)) / I;
+		end;
+		y.prevBy = C;
+		Y.barMouse((C + x * i.FishLead) > e and not ((j and j._inputSent == false)));
+	end;
+	return true;
+end;
+function Y.fishFind(x, I)
+	local y = G:FindFirstChild("Debree");
+	local Z, j = Y.char();
+	if not y or not j then
+		return nil;
+	end;
+	local i = #x;
+	local r, e = nil, I;
+	for I, y in ipairs(y:GetChildren()) do
+		if string.sub(y.Name, 1, i) == x then
+			local x = y;
+			if y.ClassName ~= "Part" and y.ClassName ~= "MeshPart" then
+				x = y:FindFirstChildWhichIsA("BasePart");
+			end;
+			local I, G = pcall(function()
+					return x.Position;
+				end);
+			if I and G then
+				local x = ((G - j.Position)).Magnitude;
+				if x < e then
+					e = x;
+					r = G;
+				end;
+			end;
+		end;
+	end;
+	return r, e;
+end;
+function Y.fishFrame()
+	if not i.fishLive then
+		return;
+	end;
+	local x, I = pcall(function()
+			if not i.Running or not ((i.AutoFish or Y.trainBar())) then
+				return;
+			end;
+			local x = os.clock();
+			local I = i.fish;
+			if I and (I.mouseUp and x >= I.mouseUp) then
+				I.mouseUp = nil;
+				Y.fishMouse(false);
+			end;
+			if I and (I.keyUp and x >= I.keyUp.t) then
+				local x = I.keyUp.vk;
+				I.keyUp = nil;
+				pcall(function()
+					keyrelease(x);
+				end);
+			end;
+			if x - ((i.fishRunT or 0)) < .0166 then
+				return;
+			end;
+			i.fishRunT = x;
+			local y = x - ((i.fishStepT or x));
+			i.fishStepT = x;
+			local G, Z;
+			if i.AutoFish then
+				Y.mark("fish/" .. tostring(i.fish and i.fish.phase or "?"));
+				Y.markWrite(x);
+				G, Z = pcall(Y.fishStep, x);
+			else
+				Y.mark("barminigame");
+				Y.markWrite(x);
+				G, Z = pcall(Y.barStep, x, y);
+			end;
+			if not G and x - ((i.fishErrT or 0)) > 5 then
+				i.fishErrT = x;
+				Y.logErr("fish", Z);
+			end;
+		end);
+	if not x then
+		Y.logErr("fish loop", I);
+	end;
+end;
+function Y.fishMouse(x)
+	local I = i.fish;
+	if x and Y.onMenu() then
+		x = false;
+	end;
+	if not I or I.lmb == x then
+		return;
+	end;
+	I.lmb = x;
+	pcall(function()
+		if x then
+			mouse1press();
+		else
+			mouse1release();
+		end;
+	end);
+end;
+function Y.fishCast(x)
+	if not Y.remote then
+		return false;
+	end;
+	pcall(function()
+		Y.remote:FireServer("Tool_Mouse", "Up", x);
+	end);
+	return true;
+end;
+function Y.fishStep(x)
+	local I = i.fish;
+	if not I then
+		return;
+	end;
+	if not i.AutoFish then
+		return;
+	end;
+	local y = x - ((I.last or x));
+	I.last = x;
+	if Y.barStep(x, y) then
+		I.phase = "game";
+		return;
+	end;
+	if I.phase == "game" then
+		I.badCasts = 0;
+		I.phase = "catch";
+		I.t = x;
+		I.tries = 0;
+		I.bites = ((I.bites or 0)) + 1;
+		I.holdAt = nil;
+		return;
+	end;
+	if x - ((I.slow or 0)) < .1 then
+		return;
+	end;
+	I.slow = x;
+	local G, Z = Y.char();
+	if not Z then
+		return;
+	end;
+	if not Y.fishRod(x) then
+		if x - ((I.eqT or 0)) > 3 then
+			I.eqT = x;
+			local y = Y.fishRodKey();
+			if y and (Y.focused(x) and not Y.fishInputReady(x)) then
+				I.eqT = x - 2.8;
+			elseif y and Y.focused(x) then
+				pcall(function()
+					keypress(y);
+				end);
+				I.keyUp = { vk = y, t = x + .08 };
+			elseif x - ((I.warn or 0)) > 10 then
+				I.warn = x;
+				Y.notify("auto fish: put a fishing rod on the hotbar", 5);
+			end;
+		end;
+		I.phase = "cast";
+		I.t = x;
+		return;
+	end;
+	if I.phase == "catch" then
+		if I.keyUp then
+			return;
+		end;
+		if x - ((I.catchChk or 0)) < .4 then
+			return;
+		end;
+		I.catchChk = x;
+		local y = Y.fishFind("FishingCatch_", 14);
+		if not y then
+			if x - I.t > 2.5 or I.tries > 0 then
+				if I.tries > 0 then
+					I.caught = ((I.caught or 0)) + 1;
+				end;
+				I.phase = "cast";
+				I.t = x;
+			end;
+			return;
+		end;
+		if x < ((I.holdAt or 0)) or not Y.focused(x) then
+			return;
+		end;
+		if I.tries >= 6 then
+			Y.notify("auto fish: could not pick up the catch", 4);
+			I.phase = "cast";
+			I.t = x;
+			return;
+		end;
+		if not Y.fishInputReady(x) then
+			return;
+		end;
+		I.tries = I.tries + 1;
+		local G = math.max(i.HoldT or 3, 3);
+		pcall(function()
+			keypress(84);
+		end);
+		I.keyUp = { vk = 84, t = x + G };
+		I.holdAt = (x + G) + .4;
+		return;
+	end;
+	if I.phase == "cast" then
+		if x - I.t < i.FishPause then
+			return;
+		end;
+		if Y.fishFind("FishingCatch_", 12) then
+			I.phase = "catch";
+			I.t = x;
+			I.tries = 0;
+			I.holdAt = nil;
+			return;
+		end;
+		local y = Y.waterPoint(x, I.dir or 0);
+		if not y then
+			return;
+		end;
+		I.water = y;
+		if Y.fishCast(y) == false then
+			return;
+		end;
+		I.phase = "wait";
+		I.t = x;
+		return;
+	end;
+	if I.phase == "wait" then
+		if x - ((I.bobChk or 0)) < 1 then
+			return;
+		end;
+		I.bobChk = x;
+		local y = Y.fishFind("FishingLine_", 120);
+		if y then
+			I.sawBob = true;
+		end;
+		if (not y and x - I.t > 4) or x - I.t > i.FishTimeout then
+			if I.sawBob and (not y and x - I.t < 8) then
+				I.badCasts = ((I.badCasts or 0)) + 1;
+				I.dir = ((I.dir or 0)) + 1;
+				if I.badCasts % 6 == 0 then
+					Y.notify("auto fish: casts keep coming back - move closer to open water", 6);
+				end;
+			else
+				I.badCasts = 0;
+			end;
+			if y then
+				Y.fishCast(I.water);
+			end;
+			I.phase = "cast";
+			I.t = x;
+			I.sawBob = false;
+		end;
+		return;
+	end;
+	if I.phase ~= "idle" then
+		I.phase = "cast";
+		I.t = x;
+	end;
+end;
+function Y.fishSync()
+	if i.AutoFish or Y.trainBar() then
+		if i.AutoFish and not i.fish then
+			i.fish = { phase = "cast", t = os.clock(), lmb = false };
+		end;
+		if not i.fishLive then
+			i.fishStepT = os.clock();
+		end;
+		i.fishLive = true;
+	else
+		i.fishLive = false;
+		if i.fish then
+			Y.fishMouse(false);
+			if i.fish.keyUp then
+				pcall(function()
+					keyrelease(i.fish.keyUp.vk);
+				end);
+				i.fish.keyUp = nil;
+			end;
+			i.fish.phase = "cast";
+		end;
+		if i.bar then
+			Y.barMouse(false);
+			i.bar.active = false;
+		end;
+	end;
+end;
+pcall(function()
+	j:SetTheme("monochrome");
+	j:SetFont("Monospace", 13);
+	j:SetAccentBar(false);
+end);
+local w = j:CreateWindow({
+		title = "slayers 2",
+		subtitle = "matcha",
+		id = "slayers2",
+		size = { 560, 600 },
+		columns = 2,
+		toggleKey = "RSHIFT",
+		visible = false,
+		folder = "UI/slayers2",
+		config = "slayers2.json",
+		inputGuard = function()
+			return Y.inputHeld();
+		end,
+		captureInput = function()
+			return not Y.wantsGameInput();
+		end,
+		onUnload = function()
+			i.Running = false;
+			i.Mode = "off";
+			pcall(function()
+				if i.F then
+					i.F.aimRelease();
+					i.F.skillsRelease();
+				end;
+			end);
+			pcall(function()
+				if i.drawConn then
+					i.drawConn:Disconnect();
+				end;
+			end);
+			pcall(function()
+				if i.tickConn then
+					i.tickConn:Disconnect();
+				end;
+			end);
+			pcall(function()
+				if i.fishConn then
+					i.fishConn:Disconnect();
+				end;
+			end);
+			pcall(function()
+				if i.deferConn then
+					i.deferConn:Disconnect();
+				end;
+			end);
+			i.deferConn = nil;
+			pcall(function()
+				if i.fish and i.fish.lmb then
+					mouse1release();
+				end;
+			end);
+			pcall(function()
+				if i.bar and i.bar.lmb then
+					mouse1release();
+				end;
+			end);
+			pcall(function()
+				mouse1release();
+			end);
+			pcall(function()
+				mouse2release();
+			end);
+			pcall(function()
+				keyrelease(84);
+			end);
+			pcall(Y.skillsRelease);
+			i.soul, i.dlg, i.dlgClick, i.crow, i.collect, i.route = nil, nil, nil, nil, nil, nil;
+			local x = i.pool;
+			i.pool = nil;
+			_G[z] = nil;
+			if x then
+				for I = 1, #x, 1 do
+					pcall(function()
+						x[I].box.Visible = false;
+						x[I].box:Remove();
+					end);
+					pcall(function()
+						x[I].tag.Visible = false;
+						x[I].tag:Remove();
+					end);
+				end;
+			end;
+			pcall(function()
+				delfile("slayers2_trail.txt");
+			end);
+			_G.Slayers2 = nil;
+		end,
+	});
+i.win = w;
+local X = w:AddTab("farm");
+local K = w:AddTab("teleport");
+local E = w:AddTab("skills");
+local N = w:AddTab("esp");
+local H = w:AddTab("misc");
+w:AddSettingsTab("menu");
+local k = Y.guard(X:AddGroup("target", 1));
+k:AddToggle({
+	text = "autofarm",
+	flag = "autofarm",
+	default = false,
+	save = false,
+	callback = function(x)
+		i.Mode = x and ((i.FarmKind or "boss")) or "off";
+		i.crow = nil;
+		i.cur = nil;
+		Y.dropCache();
+		i.markBurst = x and (os.clock() + 6) or nil;
+		Y.mark(x and "autofarm on" or "autofarm off");
+		Y.sync();
+	end,
+});
+k:AddDropdown({
+	text = "mode",
+	flag = "farmkind",
+	values = {
+		"mob",
+		"boss",
+		"crow",
+		"quest",
+		"dungeon",
+	},
+	default = "boss",
+	callback = function(x)
+		i.FarmKind = x;
+		if i.Mode ~= "off" then
+			i.Mode = x;
+			i.cur = nil;
+			Y.dropCache();
+			Y.sync();
+		end;
+	end,
+});
+k:AddDropdown({
+	text = "mob",
+	flag = "mob",
+	values = r.Mobs,
+	default = "Bandit",
+	search = true,
+	callback = function(x)
+		i.SelectedMob = x;
+	end,
+});
+k:AddDropdown({
+	text = "boss",
+	flag = "boss",
+	values = r.Bosses,
+	default = { "Akazo" },
+	multi = true,
+	search = true,
+	callback = function(x)
+		i.SelectedBoss = x;
+		Y.updateBossOrder(x);
+		i.cur = nil;
+		Y.dropCache();
+	end,
+});
+do
+	local x, I, y = {}, {}, {};
+	for G, Z in pairs(r.Quests) do
+		local j, i = G, nil;
+		if not Z.Auto then
+			local x, I = Y.optLevel(Z.QuestOption), Y.optLevel(Z.BossOption);
+			if x and (I and x ~= I) then
+				j = G .. (" (Lv " .. (math.min(x, I) .. ("/" .. (math.max(x, I) .. ")"))));
+			elseif x or I then
+				j = G .. (" (Lv " .. (((x or I)) .. ")"));
+			end;
+			i = math.min(x or 999, I or 999);
+		end;
+		x[#x + 1] = j;
+		I[j] = G;
+		y[j] = Z.Auto and -1 or i;
+	end;
+	table.sort(x, function(x, I)
+		if y[x] ~= y[I] then
+			return y[x] < y[I];
+		end;
+		return x < I;
+	end);
+	local G = {};
+	for x, y in ipairs(x) do
+		G[I[y]] = x;
+	end;
+	r.QuestByLabel = I;
+	k:AddDropdown({
+		text = "quest",
+		flag = "quests",
+		values = x,
+		default = { x[1] },
+		multi = true,
+		search = true,
+		callback = function(x)
+			local y = {};
+			local function Z(x)
+				local G = I[x] or (r.Quests[x] and x);
+				if G then
+					y[#y + 1] = G;
+				end;
+			end;
+			if type(x) == "table" then
+				for x, I in pairs(x) do
+					if I == true then
+						Z(x);
+					elseif type(I) == "string" then
+						Z(I);
+					end;
+				end;
+			elseif type(x) == "string" then
+				Z(x);
+			end;
+			table.sort(y, function(x, I)
+				return ((G[x] or 999)) < ((G[I] or 999));
+			end);
+			i.QuestSel = y;
+			i.SelectedQuest = y[1] or "[Auto-Detect Active Quest]";
+			i.acceptTries = 0;
+			i.acceptAt = nil;
+			i.acceptKey = nil;
+		end,
+	});
+end;
+k:AddDropdown({
+	text = "quest type",
+	flag = "questpick",
+	values = { "normal", "boss" },
+	default = "normal",
+	callback = function(x)
+		i.QuestPick = x;
+		i.acceptTries = 0;
+		i.acceptAt = nil;
+	end,
+});
+k:AddSlider({
+	text = "crow slot",
+	flag = "crowslot",
+	min = 1,
+	max = 5,
+	step = 1,
+	default = 2,
+	callback = function(x)
+		i.CrowSlot = x;
+	end,
+});
+k:AddSlider({
+	text = "weapon slot",
+	flag = "weapslot",
+	min = 1,
+	max = 5,
+	step = 1,
+	default = 1,
+	callback = function(x)
+		i.WeapSlot = x;
+	end,
+});
+k:AddSlider({
+	text = "quest gap",
+	flag = "questgap",
+	min = 10,
+	max = 120,
+	step = 5,
+	default = 30,
+	suffix = "s",
+	callback = function(x)
+		i.QuestGap = x;
+	end,
+});
+local W = Y.guard(X:AddGroup("fight", 2));
+W:AddDropdown({
+	text = "stance",
+	flag = "stance",
+	values = {
+		"Under Target",
+		"Behind",
+		"On Top",
+		"Above (Hover)",
+	},
+	default = "Under Target",
+	callback = function(x)
+		i.Stance = x;
+	end,
+});
+W:AddSlider({
+	text = "offset",
+	flag = "offset",
+	min = 1,
+	max = 15,
+	step = .1,
+	default = 3.8,
+	callback = function(x)
+		i.Offset = x;
+	end,
+});
+W:AddSlider({
+	text = "attack delay",
+	flag = "atkdelay",
+	min = .05,
+	max = 1,
+	step = .05,
+	default = .3,
+	suffix = "s",
+	callback = function(x)
+		i.AttackDelay = x;
+	end,
+});
+W:AddSlider({
+	text = "swing within",
+	flag = "reach",
+	min = 5,
+	max = 40,
+	default = 18,
+	suffix = "studs",
+	callback = function(x)
+		i.Reach = x;
+	end,
+});
+W:AddToggle({
+	text = "hold when blocking",
+	flag = "skipblock",
+	default = true,
+	callback = function(x)
+		i.SkipBlocking = x;
+	end,
+});
+W:AddToggle({
+	text = "aimlock",
+	flag = "aimlock",
+	default = true,
+	callback = function(x)
+		i.AimLock = x;
+		if not x then
+			Y.aimRelease();
+		end;
+	end,
+});
+W:AddSlider({
+	text = "aim gain",
+	flag = "aimgain",
+	min = .1,
+	max = 1,
+	step = .05,
+	default = .55,
+	callback = function(x)
+		i.AimGain = x;
+	end,
+});
+W:AddToggle({
+	text = "smooth movement",
+	flag = "smooth",
+	default = true,
+	callback = function(x)
+		i.Smooth = x;
+	end,
+});
+W:AddSlider({
+	text = "move speed",
+	flag = "movespeed",
+	min = 10,
+	max = 150,
+	default = 60,
+	suffix = "s/s",
+	callback = function(x)
+		i.MoveSpeed = x;
+	end,
+});
+W:AddSlider({
+	text = "warp above",
+	flag = "warpabove",
+	min = 10,
+	max = 200,
+	default = 40,
+	suffix = "studs",
+	callback = function(x)
+		i.WarpAbove = x;
+	end,
+});
+W:AddToggle({
+	text = "health guard",
+	flag = "hguard",
+	default = false,
+	callback = function(x)
+		i.HealthGuard = x;
+	end,
+});
+W:AddSlider({
+	text = "guard at",
+	flag = "hpct",
+	min = .1,
+	max = .9,
+	step = .05,
+	default = .45,
+	callback = function(x)
+		i.GuardPct = x;
+	end,
+});
+local V = {};
+for x in pairs(r.Zones) do
+	V[#V + 1] = x;
+end;
+table.sort(V);
+local T = {};
+for x in pairs(r.BossTP) do
+	T[#T + 1] = x;
+end;
+table.sort(T);
+local D = {};
+for x in pairs(r.Trainers) do
+	D[#D + 1] = x;
+end;
+table.sort(D);
+local n = Y.guard(K:AddGroup("regions", 1));
+n:AddButton({ text = "black market", callback = function()
+		Y.tpBlackMarketer();
+	end });
+n:AddButton({ text = "find muzan", callback = function()
+		Y.findMuzan(true);
+	end });
+n:AddButton({ text = "unlock all locations", callback = function()
+		Y.unlockStart();
+	end });
+local R = V[1];
+n:AddDropdown({
+	text = "region",
+	flag = "zone",
+	values = V,
+	default = R,
+	search = true,
+	callback = function(x)
+		R = x;
+	end,
+});
+n:AddButton({ text = "travel", callback = function()
+		Y.tpTo(r.Zones[R], 3);
+	end });
+local q = T[1];
+n:AddDropdown({
+	text = "boss",
+	flag = "bosstp",
+	values = T,
+	default = q,
+	search = true,
+	callback = function(x)
+		q = x;
+	end,
+});
+n:AddButton({ text = "travel to boss", callback = function()
+		Y.tpNamed(q, r.BossTP[q]);
+	end });
+local o = Y.guard(K:AddGroup("npcs", 2));
+local b = D[1];
+o:AddDropdown({
+	text = "trainer",
+	flag = "trainer",
+	values = D,
+	default = b,
+	search = true,
+	callback = function(x)
+		b = x;
+	end,
+});
+o:AddButton({ text = "travel to trainer", callback = function()
+		Y.tpNamed(b, r.Trainers[b]);
+	end });
+local xF = r.Stations[1];
+o:AddDropdown({
+	text = "station",
+	flag = "station",
+	values = r.Stations,
+	default = xF,
+	callback = function(x)
+		xF = x;
+	end,
+});
+o:AddButton({ text = "travel to station", callback = function()
+		local x = G:FindFirstChild("Training");
+		local I = x and x:FindFirstChild(xF);
+		local y = I and I:FindFirstChildWhichIsA("BasePart", true);
+		if y then
+			Y.tpTo(y.Position, 3);
+			Y.notify("at " .. xF, 2);
+		else
+			Y.notify(xF .. " not loaded", 2);
+		end;
+	end });
+o:AddButton({ text = "nearest chest", callback = function()
+		local x, I = Y.char();
+		if not I then
+			return;
+		end;
+		local y = Y.chests();
+		local G, Z = nil, 1000000000.0;
+		for x = 1, #y, 1 do
+			local j = ((y[x].Pos - I.Position)).Magnitude;
+			if j < Z then
+				Z = j;
+				G = y[x];
+			end;
+		end;
+		if G then
+			Y.tpTo(G.Pos, 3);
+			Y.notify(G.Name, 2);
+		else
+			Y.notify("no chests up", 2);
+		end;
+	end });
+r.SkillKeys = {
+		{ "z", 90 },
+		{ "x", 88 },
+		{ "c", 67 },
+		{ "v", 86 },
+		{ "b", 66 },
+		{ "k", 75 },
+		{ "n", 78 },
+	};
+do
+	local x = Y.guard(E:AddGroup("timing", 1));
+	x:AddSlider({
+		text = "gap between presses",
+		flag = "sk_gap",
+		min = .05,
+		max = 5,
+		step = .05,
+		default = .3,
+		suffix = "s",
+		callback = function(x)
+			i.SkillGap = x;
+		end,
+	});
+end;
+i.Skills = {};
+for x = 1, #r.SkillKeys, 1 do
+	local I, y = r.SkillKeys[x][1], r.SkillKeys[x][2];
+	local G = Y.guard(E:AddGroup(I, (x <= 3) and 1 or 2));
+	local Z = {
+			on = false,
+			breaker = false,
+			hold = .08,
+			dist = 15,
+			vk = y,
+			rel = 0,
+			next = 0,
+			name = I,
+		};
+	i.Skills[x] = Z;
+	G:AddToggle({
+		text = "enabled",
+		flag = "sk_" .. (I .. "_on"),
+		default = false,
+		callback = function(x)
+			Z.on = x;
+		end,
+	});
+	G:AddToggle({
+		text = "block breaker",
+		flag = "sk_" .. (I .. "_breaker"),
+		default = false,
+		callback = function(x)
+			Z.breaker = x;
+		end,
+	});
+	G:AddSlider({
+		text = "hold",
+		flag = "sk_" .. (I .. "_hold"),
+		min = .02,
+		max = 3,
+		step = .02,
+		default = .08,
+		suffix = "s",
+		callback = function(x)
+			Z.hold = x;
+		end,
+	});
+	G:AddSlider({
+		text = "range",
+		flag = "sk_" .. (I .. "_dist"),
+		min = 1,
+		max = 120,
+		default = 15,
+		suffix = "studs",
+		callback = function(x)
+			Z.dist = x;
+		end,
+	});
+end;
+local IF = Y.guard(N:AddGroup("targets", 1));
+IF:AddToggle({
+	text = "mobs",
+	flag = "espmob",
+	default = false,
+	callback = function(x)
+		i.EspMobs = x;
+		Y.sync();
+	end,
+});
+IF:AddToggle({
+	text = "bosses",
+	flag = "espboss",
+	default = false,
+	callback = function(x)
+		i.EspBosses = x;
+		Y.sync();
+	end,
+});
+IF:AddToggle({
+	text = "chests",
+	flag = "espchest",
+	default = false,
+	callback = function(x)
+		i.EspChests = x;
+		Y.sync();
+	end,
+});
+local yF = Y.guard(N:AddGroup("world", 2));
+yF:AddToggle({
+	text = "spawn crystals",
+	flag = "espcry",
+	default = false,
+	callback = function(x)
+		i.EspCrystals = x;
+		Y.sync();
+	end,
+});
+yF:AddToggle({
+	text = "spider lily",
+	flag = "esplily",
+	default = false,
+	callback = function(x)
+		i.EspLily = x;
+		Y.sync();
+	end,
+});
+yF:AddToggle({
+	text = "plants",
+	flag = "espplant",
+	default = false,
+	callback = function(x)
+		i.EspPlants = x;
+		Y.sync();
+	end,
+});
+yF:AddToggle({
+	text = "horses",
+	flag = "esphorse",
+	default = false,
+	callback = function(x)
+		i.EspHorses = x;
+		Y.sync();
+	end,
+});
+yF:AddToggle({
+	text = "levers",
+	flag = "esplever",
+	default = false,
+	callback = function(x)
+		i.EspLevers = x;
+		Y.sync();
+	end,
+});
+yF:AddToggle({
+	text = "muzan",
+	flag = "espmuzan",
+	default = false,
+	callback = function(x)
+		i.EspMuzan = x;
+		Y.sync();
+	end,
+});
+yF:AddToggle({
+	text = "fruits",
+	flag = "espfruit",
+	default = false,
+	callback = function(x)
+		i.EspFruits = x;
+		Y.sync();
+	end,
+});
+yF:AddSlider({
+	text = "distance",
+	flag = "espdist",
+	min = 100,
+	max = 3000,
+	default = 1200,
+	suffix = "m",
+	callback = function(x)
+		i.EspDist = x;
+	end,
+});
+local GF = Y.guard(H:AddGroup("automation", 1));
+GF:AddToggle({
+	text = "auto pick up loot",
+	flag = "autoloot",
+	default = true,
+	callback = function(x)
+		i.AutoLoot = x;
+	end,
+});
+GF:AddToggle({
+	text = "collect boss drops",
+	flag = "lootboss",
+	default = true,
+	callback = function(x)
+		i.LootBoss = x;
+	end,
+});
+GF:AddToggle({
+	text = "claim souls",
+	flag = "autosouls",
+	default = true,
+	callback = function(x)
+		i.AutoSouls = x;
+		Y.sync();
+	end,
+});
+GF:AddSlider({
+	text = "settle before press",
+	flag = "settlet",
+	min = 0,
+	max = 2,
+	step = .1,
+	default = .6,
+	suffix = "s",
+	callback = function(x)
+		i.SettleT = x;
+	end,
+});
+GF:AddSlider({
+	text = "wait for drops",
+	flag = "lootwait",
+	min = 1,
+	max = 20,
+	step = .5,
+	default = 5,
+	suffix = "s",
+	callback = function(x)
+		i.LootWait = x;
+	end,
+});
+GF:AddSlider({
+	text = "hold T for",
+	flag = "holdt",
+	min = .5,
+	max = 4,
+	step = .1,
+	default = 2.0,
+	suffix = "s",
+	callback = function(x)
+		i.HoldT = x;
+	end,
+});
+GF:AddToggle({
+	text = "auto train",
+	flag = "autotrain",
+	default = false,
+	callback = function(x)
+		i.AutoTrain = x;
+		Y.sync();
+	end,
+});
+GF:AddToggle({
+	text = "noclip",
+	flag = "noclip",
+	default = false,
+	callback = function(x)
+		i.NoClip = x;
+		Y.sync();
+	end,
+});
+GF:AddToggle({
+	text = "anti afk",
+	flag = "antiafk",
+	default = false,
+	callback = function(x)
+		i.AntiAFK = x;
+		Y.sync();
+	end,
+});
+local ZF = Y.guard(H:AddGroup("panic", 2));
+ZF:AddKeybind({
+	text = "panic stop",
+	flag = "panickey",
+	default = "F2",
+	mode = "always",
+	onClick = function()
+		Y.panic();
+	end,
+	changed = function(x)
+ 
+	end,
+});
+ZF:AddButton({ text = "stop everything", callback = function()
+		Y.panic();
+	end });
+ZF:AddButton({ text = "unload", confirm = true, callback = function()
+		w:Unload();
+	end });
+local jF = Y.guard(H:AddGroup("fishing", 2));
+jF:AddToggle({
+	text = "auto fish",
+	flag = "autofish",
+	default = false,
+	callback = function(x)
+		i.AutoFish = x;
+		Y.fishSync();
+	end,
+});
+jF:AddSlider({
+	text = "bar lead",
+	flag = "fishlead",
+	min = 0,
+	max = .4,
+	step = .01,
+	default = .12,
+	suffix = "s",
+	callback = function(x)
+		i.FishLead = x;
+	end,
+});
+jF:AddSlider({
+	text = "no bite recast",
+	flag = "fishtimeout",
+	min = 10,
+	max = 60,
+	step = 1,
+	default = 30,
+	suffix = "s",
+	callback = function(x)
+		i.FishTimeout = x;
+	end,
+});
+function Y.panic()
+	i.Mode = "off";
+	i.AutoTrain = false;
+	i.AutoFish = false;
+	pcall(function()
+		w:SetValue("autofarm", false);
+		w:SetValue("autotrain", false);
+		w:SetValue("autofish", false);
+	end);
+	pcall(Y.fishSync);
+	pcall(Y.skillsRelease);
+	pcall(function()
+		keyrelease(84);
+	end);
+	i.cur = nil;
+	Y.aimRelease();
+	pcall(Y.skillsRelease);
+	i.pendingLoot = nil;
+	i.lootPhase = nil;
+	i.follow = nil;
+	i.dlg = nil;
+	i.soul = nil;
+	i.crow = nil;
+	i.dungeon = nil;
+	Y.unlockStop();
+	Y.routeStop();
+	Y.collectStop();
+	Y.dropCache();
+	Y.sync();
+	Y.notify("stopped", 3);
+end;
+local iF = {
+		farm = 0,
+		esp = 0,
+		chest = 0,
+		train = 0,
+		clip = 0,
+		afk = 0,
+		zx = 0,
+		guard = 0,
+		key = 0,
+		soul = 0,
+	};
+local function rF(x)
+	if i.Mode == "off" then
+		return;
+	end;
+	local I, y, Z = Y.char();
+	if not I or Z.Health <= 0 then
+		return;
+	end;
+	if i.HealthGuard and Z.Health < Z.MaxHealth * i.GuardPct then
+		if x - iF.guard > 1 then
+			iF.guard = x;
+			pcall(function()
+				TS:Create(y, TweenInfo.new(0.5), {CFrame = y.CFrame + Vector3.new(0, 60, 0)}):Play()
+				y.AssemblyLinearVelocity = Vector3.new(0, 0, 0);
+			end);
+		end;
+		return;
+	end;
+	local j, e;
+	if i.Mode == "mob" then
+		j, e = i.SelectedMob, false;
+	elseif i.Mode == "crow" then
+		local I = Y.crowStep(x);
+		if not I then
+			if i.cur then
+				i.cur = nil;
+				Y.aimRelease();
+			end;
+			return;
+		end;
+		j, e = I, true;
+	elseif i.Mode == "boss" then
+		local x = Y.bossSet();
+		j, e = (x or "All Bosses"), true;
+	elseif i.Mode == "dungeon" then
+		Y.mark("dungeon");
+		if Y.dungeonStep(x) then
+			if i.cur then
+				i.cur = nil;
+				Y.aimRelease();
+			end;
+			return;
+		end;
+		j, e = "__dungeon", nil;
+	else
+		local I = Y.activeQuest();
+		if not I then
+			if i.questInfoKey then
+				i.lastDoneKey = i.questInfoKey;
+				i.questInfoKey = nil;
+			end;
+			local I, y = Y.pickQuest(x);
+			if not I then
+				local I, y = Y.pickQuest(x);
+				if i.cur then
+					i.cur = nil;
+					Y.aimRelease();
+				end;
+				if x - ((iF.qwarn or 0)) > 12 then
+					iF.qwarn = x;
+					if y then
+						Y.notify("ticked quests cooling down - retry in " .. (math.ceil(y - x) .. "s"), 5);
+					else
+						Y.notify("no quest to take - tick some in the quest list (or they are all done)", 6);
+					end;
+				end;
+				return;
+			end;
+			if i.acceptKey ~= y then
+				i.acceptKey = y;
+				i.acceptTries = 0;
+				i.acceptAt = nil;
+				i.atGiver = false;
+			end;
+			if I and I.AutoDeliver then
+				local y, G = Y.pickDelivery(x);
+				if not y then
+					if i.cur then
+						i.cur = nil;
+						Y.aimRelease();
+					end;
+					if G then
+						for I, y in ipairs(r.DeliverGivers) do
+							if not Y.questCompleted(y.QuestOption) then
+								Y.followNpc(y.Npc, y.Pos, x);
+								break;
+							end;
+						end;
+					end;
+					if x - ((iF.qwarn or 0)) > 15 then
+						iF.qwarn = x;
+						if G then
+							Y.notify("delivery quests cooling down - retry in " .. (math.ceil(G - x) .. "s"), 5);
+						else
+							Y.notify("every delivery quest is done", 6);
+						end;
+					end;
+					return;
+				end;
+				if i.delivGiver ~= y.QuestOption then
+					i.delivGiver = y.QuestOption;
+					i.acceptTries = 0;
+					i.acceptAt = nil;
+					i.atGiver = false;
+				end;
+				if not ((i.delivSent and i.delivSent[y.QuestOption])) then
+					i.acceptTries = 0;
+				end;
+				I = y;
+			end;
+			if not ((I and I.Pos)) then
+				if x - ((iF.qwarn or 0)) > 8 then
+					iF.qwarn = x;
+					Y.notify("no active quest - pick one in the quest list to accept it", 5);
+				end;
+				return;
+			end;
+			if i.cur then
+				i.cur = nil;
+				Y.aimRelease();
+				pcall(Y.skillsRelease);
+				if Y.clickRelease then
+					pcall(Y.clickRelease);
+				end;
+			end;
+			local G = Y.followNpc(I.Npc, I.Pos, x);
+			local Z = i.atGiver and 12 or 8;
+			if G > Z then
+				i.atGiver = false;
+				i.acceptAt = nil;
+				return;
+			end;
+			i.atGiver = true;
+			local j = Y.questOpt(I);
+			if not j then
+				if x - ((iF.qwarn or 0)) > 8 then
+					iF.qwarn = x;
+					Y.notify("at " .. (tostring(I.Npc) .. (": this quest has no " .. (i.QuestPick .. " option"))), 5);
+				end;
+				return;
+			end;
+			if Y.questCompleted(j) then
+				if x - ((iF.qwarn or 0)) > 10 then
+					iF.qwarn = x;
+					Y.notify("already completed: " .. (j .. " - pick another quest"), 6);
+				end;
+				return;
+			end;
+			i.acceptAt = i.acceptAt or (x + i.SettleT);
+			if x < i.acceptAt then
+				return;
+			end;
+			i.hadQuest = false;
+			local e = i.lastAcceptAt and (x - i.lastAcceptAt);
+			if not e and I.QuestOption then
+				local x = Y.questLastAge();
+				if x then
+					e = x;
+				end;
+			end;
+			if e and e < i.QuestGap then
+				if x - ((iF.qwarn or 0)) > 10 then
+					iF.qwarn = x;
+					Y.notify("next quest in " .. (math.ceil(i.QuestGap - e) .. "s"), 3);
+				end;
+				return;
+			end;
+			if not Y.remote then
+				local y = Y.dlgTalk(j, x);
+				if y == "failed" and x - ((iF.qwarn or 0)) > 12 then
+					iF.qwarn = x;
+					Y.notify("could not take \'" .. (j .. ("\' from " .. (tostring(I.Npc) .. " - do it by hand"))), 6);
+				end;
+				return;
+			end;
+			if Y.remote and (x - ((iF.accept or 0))) > 8 then
+				iF.accept = x;
+				i.acceptTries = ((i.acceptTries or 0)) + 1;
+				if i.acceptTries > 3 then
+					if x - ((iF.qwarn or 0)) > 10 then
+						iF.qwarn = x;
+						Y.notify("server keeps refusing \'" .. (j .. "\' (level or quest limit?) - skipping it"), 6);
+					end;
+					if y then
+						i.qBack = i.qBack or {};
+						i.qBack[y] = x + 120;
+					end;
+					i.acceptTries = 0;
+					return;
+				end;
+				pcall(function()
+					Y.remote:FireServer("AddQuest", j);
+				end);
+				if y and not I.AutoDeliver then
+					i.qSent = i.qSent or {};
+					i.qSent[y] = i.qSent[y] or x;
+				end;
+				if I.QuestOption == j and r.DeliverGivers then
+					i.delivSent = i.delivSent or {};
+					i.delivSent[j] = i.delivSent[j] or x;
+				end;
+				Y.notify("accepting: " .. j, 3);
+			end;
+			return;
+		end;
+		i.acceptAt = nil;
+		i.acceptTries = 0;
+		i.atGiver = false;
+		i.dlg = nil;
+		if not i.hadQuest then
+			i.lastAcceptAt = x;
+		end;
+		i.hadQuest = true;
+		if I.Desc and i.delivSent then
+			i.delivSent[I.Desc] = nil;
+			if i.delivFails then
+				i.delivFails[I.Desc] = nil;
+			end;
+		end;
+		local Z, C = Y.entryForQuest(I);
+		i.questInfo = Z;
+		i.questDesc = I.Desc;
+		i.questInfoKey = C;
+		if C and i.qSent then
+			i.qSent[C] = nil;
+		end;
+		if C and i.qBack then
+			i.qBack[C] = nil;
+		end;
+		if I.Complete then
+			if i.cur then
+				i.cur = nil;
+				Y.aimRelease();
+				pcall(Y.skillsRelease);
+				if Y.clickRelease then
+					pcall(Y.clickRelease);
+				end;
+			end;
+			local I = Z;
+			if I and I.Pos then
+				Y.followNpc(I.Npc, I.Pos, x);
+			end;
+			return;
+		end;
+		local v = Z;
+		local U;
+		for x = 1, #I.Tasks, 1 do
+			if ((I.Tasks[x].Value or 0)) < ((I.Tasks[x].Max or 1)) then
+				U = I.Tasks[x];
+				break;
+			end;
+		end;
+		local F = r.Deliver[I.Name];
+		local S = F and (U and F.tasks[U.Name]);
+		if S then
+			Y.deliverStep(F.opt, U.Name, S, y, x);
+			return;
+		end;
+		i.deliverKey = nil;
+		local h = Y.taskKind(U and U.Name);
+		j = nil;
+		if h ~= "fetch" then
+			local x = {};
+			local function y(I)
+				if type(I) == "string" and I ~= "" then
+					x[string.lower(I)] = true;
+				end;
+			end;
+			y(Y.codeToMob(U and U.Code));
+			y(Y.questTarget(I));
+			if h == "kill" and (v and not v.Auto) then
+				local x = I.Desc and v.BossOption == I.Desc;
+				if x == nil then
+					x = (i.QuestPick == "boss");
+				end;
+				y(x and ((v.BossTarget or v.Target)) or v.Target);
+			end;
+			local G = 0;
+			for x in pairs(x) do
+				G = G + 1;
+			end;
+			if G > 1 then
+				j = x;
+			elseif G == 1 then
+				for x in pairs(x) do
+					j = x;
+				end;
+			end;
+		end;
+		if not j then
+			local x = Y.questPickups();
+			if #x > 0 then
+				local I = {};
+				for y = 1, #x, 1 do
+					I[#I + 1] = Y.pickup(G, function()
+							return G;
+						end, x[y].Node, x[y].Root, nil, { tap = true });
+				end;
+				Y.collectStart(I, "quest pickup: " .. x[1].Name);
+				return;
+			end;
+			if h == "kill" and (v and (not v.Auto and v.Target)) then
+				j = v.Target;
+			end;
+		end;
+		if not j and h == "fetch" then
+			if x - ((iF.qwarn or 0)) > 10 then
+				iF.qwarn = x;
+				Y.notify("\'" .. (tostring(U and U.Name) .. "\' is not a kill objective and no prop is spawned - nothing to farm"), 6);
+			end;
+			return;
+		end;
+		e = false;
+		if not j then
+			if x - ((iF.qwarn or 0)) > 8 then
+				iF.qwarn = x;
+				Y.notify("nothing to farm or pick up in: " .. tostring(I.Name), 5);
+			end;
+			return;
+		end;
+	end;
+	local C = (type(j) == "table") and Y.setKey(j) or tostring(j);
+	local v = i.cur;
+	if v and v.wantKey == C then
+		local I = nil;
+		local y = Y.curAlive(v) and pcall(function()
+				I = v.Hum.Health;
+			end);
+		if not v.stale and (((not y or not I or I <= 0)) and (i.LootBoss and (v.Boss and (v.lastPos and i.Mode ~= "dungeon")))) then
+			i.pendingLoot = { pos = v.lastPos, t = x };
+		end;
+		if I and I > 0 then
+			if v.lastHp == nil or I < v.lastHp then
+				v.lastHp = I;
+				v.t = x;
+			end;
+			pcall(function()
+				v.lastPos = v.Root.Position;
+			end);
+			if (x - v.t) < 8.0 then
+				Y.attack(x);
+				return;
+			end;
+			Y.notify("target stuck, re-picking", 2);
+		end;
+		i.cur = nil;
+		Y.dropCache();
+	end;
+	Y.mark("farm/scan");
+	local U;
+	if i.Mode == "dungeon" then
+		U = Y.dungeonTargets(x);
+	else
+		U = Y.scanCached(j, e, x, .5, i.Mode == "boss" or i.Mode == "crow");
+	end;
+	Y.mark("farm/pick n=" .. #U);
+	if #U == 0 and i.Mode == "quest" then
+		local x = i.questInfo;
+		local I = x and (x.BossOption and i.questDesc == x.BossOption);
+		if x and (x.Alt and not I) then
+			U = Y.scan(x.Alt, false);
+		end;
+	end;
+	if #U == 0 then
+		if i.Mode == "dungeon" then
+			return;
+		end;
+		if x - iF.guard > i.Retarget * 3 then
+			iF.guard = x;
+			local I = Y.wantSpawn(j);
+			if I then
+				Y.tpTo(I, 3);
+			elseif x - ((iF.nodest or 0)) > 12 then
+				iF.nodest = x;
+				local I = (type(j) == "table") and Y.bossLabel() or tostring(j);
+				Y.notify("no known spot for " .. (I .. " - find it once and it is remembered"), 6);
+			end;
+		end;
+		return;
+	end;
+	local F = Y.nearest(U, y.Position);
+	if not F then
+		Y.dropCache();
+		return;
+	end;
+	F.want = j;
+	F.wantKey = C;
+	F.t = x;
+	if F.Head == nil then
+		F.MAddr = Y.addr(F.Model);
+		pcall(function()
+			F.Head = F.Model:FindFirstChild("Head") or false;
+		end);
+	end;
+	i.cur = F;
+	Y.attack(x);
+end;
+local function YF()
+	if not i.Running then
+		return;
+	end;
+	local x = os.clock();
+	Y.markWrite(x);
+	Y.mark("tick");
+	Y.deathCheck(x);
+	if i.bm then
+		Y.mark("blackmarket");
+		local I, y = pcall(Y.bmStep, x);
+		if not I then
+			i.bm = nil;
+			Y.logErr("black marketer", y);
+		end;
+	end;
+	if i.unlock then
+		Y.mark("unlock");
+		local I, y = pcall(Y.unlockStep, x);
+		if I and y then
+			return;
+		end;
+		if not I then
+			Y.unlockStop();
+		end;
+	end;
+	if i.AutoSouls and (Y.farming() and not i.route) then
+		Y.mark("souls");
+		local I, y = pcall(Y.soulStep, x);
+		if I and y then
+			return;
+		end;
+	end;
+	if i.route then
+		Y.mark("route");
+		local I, y = pcall(Y.routeStep, x);
+		if I and y then
+			return;
+		end;
+		if not I then
+			Y.routeStop();
+		end;
+	end;
+	if i.collect then
+		Y.mark("collect");
+		if pcall(Y.collectStep, x) then
+			return;
+		end;
+	end;
+	if ((i.AutoLoot or i.AutoSouls)) and (Y.farming() and (not i.collect and (not i.lootPhase and (not i.route and (x - ((iF.loot or 0))) > 2.0)))) then
+		iF.loot = x;
+		local I, y = Y.char();
+		if y then
+			if i.AutoLoot then
+				local x = Y.lootNear(y.Position, i.LootRange);
+				if #x > 0 then
+					Y.collectStart(x, "loot");
+				end;
+			end;
+		end;
+	end;
+	if i.pendingLoot and (x - i.pendingLoot.t) > 1.0 then
+		i.lootPhase = { pos = i.pendingLoot.pos, t0 = x, last = x };
+		i.pendingLoot = nil;
+		Y.notify("boss down, collecting drops", 3);
+	end;
+	if i.lootPhase then
+		Y.mark("bossloot");
+		local I = i.lootPhase;
+		if x - ((I.scanT or 0)) < .25 then
+			Y.travelTo(I.pos, x);
+			return;
+		end;
+		I.scanT = x;
+		local y = Y.lootNear(I.pos, 90);
+		local G, Z = {}, {};
+		for x = 1, #y, 1 do
+			if y[x].tap then
+				G[#G + 1] = y[x];
+			else
+				Z[#Z + 1] = y[x];
+			end;
+		end;
+		if #G > 0 or #Z > 0 then
+			I.sawChest = true;
+		end;
+		if #G > 0 then
+			I.last = x;
+			Y.collectStart(G, "boss chest");
+			return;
+		end;
+		if #Z > 0 and ((I.passes or 0)) < 4 then
+			I.last = x;
+			I.passes = ((I.passes or 0)) + 1;
+			if Y.routeStart(Z) then
+				return;
+			end;
+		end;
+		local j = (x - I.last) > i.LootWait;
+		if not I.sawChest then
+			j = (x - I.t0) > 25;
+		end;
+		if (x - I.t0) > 60 then
+			j = true;
+		end;
+		if j then
+			if not I.sawChest then
+				Y.notify("no boss chest appeared, moving on", 4);
+			end;
+			i.lootPhase = nil;
+			Y.notify("drops done, next boss", 2);
+		else
+			Y.travelTo(I.pos, x);
+			return;
+		end;
+	end;
+	if x - iF.key >= .1 then
+		iF.key = x;
+		if iskeypressed and iskeypressed(i.PanicVK) then
+			if i.Mode ~= "off" or i.AutoTrain or i.collect then
+				Y.panic();
+			end;
+		end;
+	end;
+	Y.mark("dlg");
+	pcall(Y.dlgRelease, x);
+	if i.follow and not i.cur then
+		Y.mark("follow");
+		pcall(Y.followStep, x);
+	end;
+	if i.Mode ~= "off" and (i.cur and Y.curAlive(i.cur)) then
+		Y.mark("steer");
+		pcall(Y.steer);
+		local I;
+		pcall(function()
+			local x = i.cur;
+			local y = x.Head;
+			I = (y and y.Position) or x.Root.Position;
+		end);
+		Y.mark("aim");
+		pcall(Y.aimStep, I);
+		local y, G = Y.char();
+		if G and I then
+			local y = ((I - G.Position)).Magnitude;
+			Y.mark("skills");
+			pcall(Y.skillStep, x, y);
+		end;
+	else
+		Y.aimRelease();
+		pcall(Y.skillsRelease);
+	end;
+	if x - iF.farm >= i.AttackDelay then
+		iF.farm = x;
+		Y.mark("farm/" .. tostring(i.Mode));
+		pcall(rF, x);
+		Y.mark("farm/done");
+	end;
+	if Y.espOn() and x - iF.esp >= .35 then
+		iF.esp = x;
+		Y.mark("espbuild");
+		pcall(Y.espBuild);
+	end;
+	if i.AutoTrain and (not i.AutoFish and (not i.collect and x - iF.train >= 1.5)) then
+		iF.train = x;
+		pcall(function()
+			local y = I:FindFirstChild("Player_Service");
+			local G = y and y:FindFirstChild("Values");
+			local j = G and G:FindFirstChild(Z.Name);
+			if not j then
+				return;
+			end;
+			if j:FindFirstChild("Training") then
+				if Y.remote then
+					Y.remote:FireServer("training_signaler", "Stop", true);
+				else
+					i.trainSince = i.trainSince or x;
+					local I = i.bar;
+					if not ((I and I.active)) and (x - i.trainSince > 5 and x - ((i.trainWarn or 0)) > 30) then
+						i.trainWarn = x;
+						Y.notify("click mode only plays the Squat bar - finish this station yourself", 6);
+					end;
+				end;
+			else
+				i.trainSince = nil;
+			end;
+		end);
+	end;
+	if i.NoClip and x - iF.clip >= .25 then
+		iF.clip = x;
+		pcall(function()
+			local x = Z.Character;
+			if not x then
+				return;
+			end;
+			local I = x:GetChildren();
+			for x = 1, #I, 1 do
+				local y = I[x];
+				if ((y.ClassName == "Part" or y.ClassName == "MeshPart")) and y.Name ~= "HumanoidRootPart" then
+					y.CanCollide = false;
+				end;
+			end;
+		end);
+	end;
+	if i.Mode ~= "off" and (x - ((iF.survey or 0))) > 10 then
+		iF.survey = x;
+		pcall(function()
+			Y.scan(nil, nil);
+		end);
+	end;
+	pcall(Y.seenSave, x);
+	if i.AntiAFK and x - iF.afk >= 120 then
+		iF.afk = x;
+		pcall(function()
+			mousemoverel(2, 0);
+			mousemoverel(-2, 0);
+		end);
+	end;
+end;
+function Y.deathCheck(x)
+	if x - ((i.deathT or 0)) < .25 then
+		return;
+	end;
+	i.deathT = x;
+	local I, y, G = Y.char();
+	local Z = true;
+	if G then
+		pcall(function()
+			Z = G.Health <= 0;
+		end);
+	end;
+	if Z and not i.wasDead then
+		i.wasDead = true;
+		pcall(function()
+			mouse1release();
+		end);
+		pcall(function()
+			mouse2release();
+		end);
+		for x, I in ipairs({
+			70,
+			84,
+			90,
+			88,
+			67,
+			86,
+			66,
+			78,
+			75,
+		}) do
+			pcall(function()
+				keyrelease(I);
+			end);
+		end;
+		i.rmbDown, i.lmbDown = false, false;
+		pcall(Y.skillsRelease);
+		i.cur, i.collect, i.route, i.soul = nil, nil, nil, nil;
+		if i.unlock then
+			i.unlock.held = false;
+		end;
+		Y.mark("died");
+	elseif not Z and i.wasDead then
+		i.wasDead = nil;
+	end;
+end;
+function Y.farming()
+	return i.Mode ~= "off" or i.lootPhase ~= nil or i.pendingLoot ~= nil;
+end;
+function Y.busy()
+	return i.Mode ~= "off" or i.collect ~= nil or i.route ~= nil or i.lootPhase ~= nil or i.unlock ~= nil or i.bm ~= nil or i.pendingLoot ~= nil or i.AutoTrain or i.NoClip or i.AntiAFK or Y.espOn();
+end;
+function Y.sync()
+	i.syncWant = true;
+end;
+function Y.syncNow()
+	Y.espSync();
+	pcall(Y.fishSync);
+	pcall(Y.syncSkills);
+	if Y.busy() then
+		i.tickLive = true;
+	elseif i.tickLive then
+		i.tickLive = false;
+		Y.aimRelease();
+		pcall(Y.skillsRelease);
+		i.cur = nil;
+		Y.dropCache();
+	end;
+end;
+function Y.connectLoops()
+	i.tickConn = y.Heartbeat:Connect(function()
+			if not i.tickLive then
+				return;
+			end;
+			local x, I = pcall(YF);
+			if not x then
+				Y.logErr("tick", I);
+			end;
+		end);
+	i.drawConn = y.RenderStepped:Connect(Y.drawFrame);
+	i.fishConn = y.RenderStepped:Connect(Y.fishFrame);
+	i.deferConn = y.Heartbeat:Connect(function()
+			local x, I = pcall(Y.deferRun);
+			if not x then
+				Y.logErr("defer", I);
+			end;
+		end);
+end;
+pcall(Y.markPrev);
+pcall(Y.seenLoad);
+pcall(function()
+	w:LoadSettings();
+end);
+Y.connectLoops();
+pcall(Y.syncNow);
+Y.notify("loaded - rshift for the menu", 4);
+print("[Slayers 2] loaded");
