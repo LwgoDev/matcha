@@ -1,0 +1,237 @@
+-- Slayers 2 launcher for Matcha Drawing UI.
+-- Optional screenshot files (raw PNG/JPG bytes): rorri_ui.dat, ashs_ui.dat
+-- Stop switch: press P, or set _G.StopSlayersLauncher = true.
+
+local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local player = Players.LocalPlayer
+local mouse = player:GetMouse()
+local camera = workspace.CurrentCamera
+
+if _G.SlayersLauncherRunning then
+    _G.StopSlayersLauncher = true
+    task.wait(0.1)
+end
+_G.StopSlayersLauncher = false
+_G.SlayersLauncherRunning = true
+
+local URL_ATLAS = "https://raw.githubusercontent.com/rorri-cm/slayer2test/refs/heads/main/slayers%202%20base.txt"
+local URL_ASHS = "https://raw.githubusercontent.com/Shoobie-code/slayers2/refs/heads/main/main"
+local URL_ASHS_NOPRO = "https://raw.githubusercontent.com/Shoobie-code/slayers2/refs/heads/main/nopro"
+
+local drawings = {}
+local function square(x, y, w, h, color, filled, transparency, z)
+    local d = Drawing.new("Square")
+    d.Position = Vector2.new(x, y)
+    d.Size = Vector2.new(w, h)
+    d.Color = color
+    d.Filled = filled ~= false
+    d.Thickness = 1
+    d.Transparency = transparency or 0
+    d.ZIndex = 1000 + (z or 10)
+    d.Visible = true
+    drawings[#drawings + 1] = d
+    return d
+end
+
+local function label(text, x, y, size, color, centered, z)
+    local d = Drawing.new("Text")
+    d.Text = text
+    d.Position = Vector2.new(x, y)
+    d.Size = size
+    d.Color = color
+    d.Center = centered == true
+    d.Outline = true
+    d.ZIndex = 1000 + (z or 20)
+    d.Visible = true
+    drawings[#drawings + 1] = d
+    return d
+end
+
+local function drawPreview(x, y, w, h, kind)
+    local purple = kind == "rorri"
+    local accent = purple and Color3.fromRGB(126, 44, 255) or Color3.fromRGB(166, 166, 166)
+    local dark = Color3.fromRGB(24, 25, 29)
+    square(x, y, w, h, Color3.fromRGB(8, 9, 12), true, 0, 12)
+    square(x + 2, y + 2, w - 4, 28, dark, true, 0, 13)
+    label(purple and "AutoFarm" or "slayers 2", x + 13, y + 8, 14, Color3.fromRGB(240, 240, 245), false, 14)
+
+    if purple then
+        square(x + 2, y + 30, 42, h - 32, Color3.fromRGB(15, 16, 19), true, 0, 13)
+        for i = 0, 6 do
+            square(x + 15, y + 52 + i * 31, 14, 3, accent, true, 0, 15)
+        end
+        square(x + 54, y + 40, w - 66, h - 52, Color3.fromRGB(34, 35, 40), true, 0, 13)
+        label("QUEST CYCLE", x + 68, y + 48, 10, accent, false, 15)
+        for i = 0, 3 do
+            local rowY = y + 76 + i * 42
+            label(({"Full AutoFarm", "Select Quest", "Quest Mission Type", "Quest Wait"})[i + 1], x + 69, rowY, 10, Color3.fromRGB(218, 219, 225), false, 15)
+            square(x + 69, rowY + 17, w - 100, 13, Color3.fromRGB(48, 50, 56), true, 0, 14)
+            square(x + 72, rowY + 21, (w - 115) * 0.44, 5, accent, true, 0, 15)
+        end
+    else
+        square(x + 2, y + 30, w - 4, 24, Color3.fromRGB(17, 18, 21), true, 0, 13)
+        local tabs = {"farm", "teleport", "skills", "esp", "misc"}
+        for i = 1, #tabs do
+            label(tabs[i], x + 26 + (i - 1) * ((w - 42) / #tabs), y + 37, 9, Color3.fromRGB(210, 210, 215), false, 15)
+        end
+        local colW = (w - 30) * 0.47
+        for col = 0, 1 do
+            local cx = x + 10 + col * (colW + 8)
+            square(cx, y + 62, colW, h - 76, Color3.fromRGB(33, 34, 38), true, 0, 13)
+            label(col == 0 and "target" or "fight", cx + 10, y + 69, 10, Color3.fromRGB(230, 230, 235), false, 15)
+            for row = 0, 5 do
+                local ry = y + 96 + row * 29
+                square(cx + 10, ry + 14, colW - 20, 7, Color3.fromRGB(55, 57, 63), true, 0, 14)
+                square(cx + 10, ry + 14, (colW - 20) * (0.28 + row * 0.08), 7, Color3.fromRGB(170, 170, 180), true, 0, 15)
+            end
+        end
+    end
+end
+
+local viewport = camera.ViewportSize
+local width = math.min(1120, viewport.X - 40)
+local height = math.min(760, viewport.Y - 40)
+local left = math.floor((viewport.X - width) * 0.5)
+local top = math.floor((viewport.Y - height) * 0.5)
+local padding = 24
+local gap = 18
+local cardW = math.floor((width - padding * 2 - gap) * 0.5)
+local cardH = height - 78
+local cardY = top + 54
+
+square(0, 0, viewport.X, viewport.Y, Color3.fromRGB(2, 3, 8), true, 0.38, 1)
+square(left, top, width, height, Color3.fromRGB(19, 20, 24), true, 0, 2)
+square(left, top, width, height, Color3.fromRGB(114, 116, 124), false, 0.15, 3)
+label("SLAYERS 2", left + padding, top + 16, 20, Color3.fromRGB(244, 244, 248), false, 5)
+label("SCRIPT LAUNCHER", left + width - padding, top + 21, 10, Color3.fromRGB(170, 172, 182), false, 5)
+label("P  CLOSE", left + width * 0.5, top + 20, 10, Color3.fromRGB(170, 172, 182), true, 5)
+
+local cardLeftX = left + padding
+local cardRightX = cardLeftX + cardW + gap
+local rorriColor = Color3.fromRGB(93, 27, 229)
+local ashsColor = Color3.fromRGB(102, 104, 110)
+square(cardLeftX, cardY, cardW, cardH, rorriColor, true, 0, 4)
+square(cardRightX, cardY, cardW, cardH, ashsColor, true, 0, 4)
+square(cardLeftX, cardY, cardW, cardH, Color3.fromRGB(220, 205, 255), false, 0, 5)
+square(cardRightX, cardY, cardW, cardH, Color3.fromRGB(220, 220, 225), false, 0, 5)
+
+local imageXInset = 18
+local imageY = cardY + 18
+local imageW = cardW - imageXInset * 2
+local imageH = math.floor(cardH * 0.62)
+drawPreview(cardLeftX + imageXInset, imageY, imageW, imageH, "rorri")
+drawPreview(cardRightX + imageXInset, imageY, imageW, imageH, "ashs")
+
+local function tryImage(fileName, x, y, w, h)
+    local bytes
+    pcall(function()
+        if isfile(fileName) then bytes = readfile(fileName) end
+    end)
+    if type(bytes) ~= "string" or #bytes == 0 then return end
+    local image = Drawing.new("Image")
+    image.Data = bytes
+    image.Position = Vector2.new(x, y)
+    image.Size = Vector2.new(w, h)
+    image.Rounding = 4
+    image.ZIndex = 1030
+    image.Visible = true
+    drawings[#drawings + 1] = image
+end
+
+-- Optional exact screenshots override the built-in stylized previews.
+tryImage("rorri_ui.dat", cardLeftX + imageXInset, imageY, imageW, imageH)
+tryImage("ashs_ui.dat", cardRightX + imageXInset, imageY, imageW, imageH)
+
+local nameY = imageY + imageH + 22
+label("RORRI SLAYERS 2", cardLeftX + cardW * 0.5, nameY, 24, Color3.fromRGB(255, 255, 255), true, 25)
+label("ATLAS  |  FAST", cardLeftX + cardW * 0.5, nameY + 34, 12, Color3.fromRGB(231, 221, 255), true, 25)
+label("ASHS SLAYERS 2", cardRightX + cardW * 0.5, nameY, 24, Color3.fromRGB(255, 255, 255), true, 25)
+label("RECOMMENDED", cardRightX + cardW * 0.5, nameY + 34, 12, Color3.fromRGB(242, 242, 245), true, 25)
+
+local function makeButton(x, y, w, h, text, color)
+    local bg = square(x, y, w, h, color, true, 0, 40)
+    local border = square(x, y, w, h, Color3.fromRGB(245, 245, 250), false, 0.2, 41)
+    local txt = label(text, x + w * 0.5, y + h * 0.5 - 7, 14, Color3.fromRGB(255, 255, 255), true, 42)
+    return { x = x, y = y, w = w, h = h, bg = bg, border = border, text = txt, base = color }
+end
+
+local buttonW = cardW - 50
+local buttonH = 42
+local buttonY = cardY + cardH - 62
+local atlasButton = makeButton(cardLeftX + 25, buttonY, buttonW, buttonH, "LAUNCH ATLAS (FAST)", Color3.fromRGB(58, 18, 158))
+local ashsRecommended = makeButton(cardRightX + 25, buttonY - 28, buttonW, buttonH, "LAUNCH ASHS (RECOMMENDED)", Color3.fromRGB(69, 71, 78))
+local ashsNonPro = makeButton(cardRightX + 25, buttonY + 22, buttonW, 34, "ASHS NON-PRO  -  FULLSCREEN REQUIRED", Color3.fromRGB(49, 51, 57))
+
+local running = true
+local previousMouseDown = false
+local function removeLauncher()
+    if not running then return end
+    running = false
+    _G.StopSlayersLauncher = true
+    _G.SlayersLauncherRunning = false
+    for i = 1, #drawings do
+        pcall(function() drawings[i]:Remove() end)
+    end
+end
+
+local function runRemote(url, title, needsFullscreen)
+    if needsFullscreen then
+        notify("Ashs non-pro works best in Roblox fullscreen.", "Fullscreen Required", 5)
+    end
+    removeLauncher()
+    task.spawn(function()
+        local ok, err = pcall(function()
+            local source = httpget(url)
+            local chunk = loadstring(source)
+            if not chunk then error("Could not compile " .. title) end
+            chunk()
+        end)
+        if not ok then notify(tostring(err), "Launcher Error", 8) end
+    end)
+end
+
+local buttons = {
+    { data = atlasButton, url = "https://raw.githubusercontent.com/rorri-cm/slayer2test/refs/heads/main/slayers%202%20base.txt", title = "Atlas ( fast )" },
+    { data = ashsRecommended, url = "https://raw.githubusercontent.com/LwgoDev/matcha/refs/heads/main/ASH", title = "Ashs ( recommended )" },
+    { data = ashsNonPro, url = "https://raw.githubusercontent.com/Shoobie-code/slayers2/refs/heads/main/nopro", title = "Ashs ( non-pro )", fullscreen = true }
+}
+
+local lastHover = nil
+task.spawn(function()
+    while running and not _G.StopSlayersLauncher do
+        local keyDown = iskeypressed and (iskeypressed(80) or iskeypressed(27))
+        if keyDown then
+            removeLauncher()
+            break
+        end
+
+        local mx, my = mouse.X, mouse.Y
+        local down = ismouse1pressed and ismouse1pressed() or false
+        local hovered = nil
+        for i = 1, #buttons do
+            local b = buttons[i].data
+            if mx >= b.x and mx <= b.x + b.w and my >= b.y and my <= b.y + b.h then
+                hovered = i
+                if down and not previousMouseDown then
+                    local choice = buttons[i]
+                    runRemote(choice.url, choice.title, choice.fullscreen)
+                    return
+                end
+            end
+        end
+        if hovered ~= lastHover then
+            for i = 1, #buttons do
+                local b = buttons[i].data
+                b.bg.Color = (i == hovered) and Color3.fromRGB(133, 101, 255) or b.base
+            end
+            lastHover = hovered
+        end
+        previousMouseDown = down
+        task.wait(0.02)
+    end
+    if not running then return end
+    removeLauncher()
+end)
+
+notify("Select a script. Press P or Escape to close.", "Slayers 2 Launcher", 5)
