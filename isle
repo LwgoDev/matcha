@@ -1,4 +1,4 @@
---- // 11111
+-- qqqqqqqqqqqqqqqqqqq
 
 -- Matcha-compatible Isle ESP. Stop older versions before first use.
 local session = {running = true, drawings = {}, handles = {}}
@@ -1013,6 +1013,21 @@ local function register(rec)
         report("RegisterModel", ok and "No handle returned; check Matcha support" or handle)
     end
 end
+local function readPosition(part)
+    -- Copy numeric coordinates out of Matcha's wrapper while the read is valid.
+    -- Missing/stale Position values should hide an entry, not remove its handle.
+    local ok, x, y, z = pcall(function()
+        if not part then return nil end
+        local pos = part.Position
+        if pos == nil then return nil end
+        return pos.X, pos.Y, pos.Z
+    end)
+    local function finite(n)
+        return type(n) == "number" and n == n and n > -math.huge and n < math.huge
+    end
+    if not ok or not finite(x) or not finite(y) or not finite(z) then return nil end
+    return {X=x, Y=y, Z=z}
+end
 local function refreshRecord(rec)
     if rec.object.Parent == nil or rec.root.Parent == nil then removeRecord(rec.address) return end
     local kind = category(rec)
@@ -1027,7 +1042,8 @@ local function refreshRecord(rec)
             if rec.hp <= 0 then return end
         end
     elseif rootPosition then
-        local p = rec.root.Position
+        local p = readPosition(rec.root)
+        if not p then return end
         local dx,dy,dz = p.X-rootPosition.X,p.Y-rootPosition.Y,p.Z-rootPosition.Z
         if dx*dx+dy*dy+dz*dz > maxDistance*maxDistance then return end
     else
@@ -1120,7 +1136,7 @@ local function cacheStep()
             local player=Players.LocalPlayer
             local character=player and player.Character
             local root=character and character:FindFirstChild("HumanoidRootPart")
-            return root and root.Position
+            return readPosition(root)
         end)
         rootPosition=ok and pos or nil
     end
