@@ -1,4 +1,4 @@
--- qqqqqqqqqqqqqqqqqqq
+-- greikgew
 
 -- Matcha-compatible Isle ESP. Stop older versions before first use.
 local session = {running = true, drawings = {}, handles = {}}
@@ -929,6 +929,8 @@ local Workspace = game:GetService("Workspace")
 local Players = game:GetService("Players")
 local flags = {escape=false, item=false, gun=false, entity=false}
 local maxDistance = 500
+local limitDistance = false
+local allItems = true
 local enabledItems, knownItems, knownSet = {}, {}, {}
 local records, recordList = {}, {}
 local scan, nextScan = nil, 0
@@ -938,6 +940,8 @@ local listDirty, choicesDirty = false, false
 local itemDropdown
 local MAX_RECORDS, recordCount = 512, 0
 local lastErrors = {}
+local folderStatus = {}
+local noPartMatches = 0
 
 local function report(context, err)
     local now = os.clock()
@@ -970,7 +974,7 @@ local function category(rec)
     if rec.source == "entity" then return flags.entity and "entity" or nil end
     if flags.escape and escapeNames[rec.key] then return "escape" end
     if flags.gun and rec.gun then return "gun" end
-    if flags.item and enabledItems[rec.name] then return "item" end
+    if flags.item and (allItems or enabledItems[rec.name]) then return "item" end
 end
 local function removeRecord(key)
     local rec = records[key]
@@ -985,12 +989,19 @@ local function removeRecord(key)
     listDirty = true
 end
 local function findPart(object, entity)
-    if object:IsA("BasePart") then return object, object end
+    local function isPart(obj)
+        if not obj then return false end
+        local class = obj.ClassName
+        return class == "Part" or class == "MeshPart" or class == "UnionOperation"
+            or class == "WedgePart" or class == "CornerWedgePart" or obj:IsA("BasePart")
+    end
+    if isPart(object) then return object, object end
     local root = object:FindFirstChild("HumanoidRootPart") or object:FindFirstChild("Handle")
         or object:FindFirstChildWhichIsA("BasePart")
-    if not root or not root:IsA("BasePart") then return nil end
+        or object:FindFirstChildOfClass("Part") or object:FindFirstChildOfClass("MeshPart")
+    if not isPart(root) then return nil end
     local head = entity and object:FindFirstChild("Head") or root
-    if not head or not head:IsA("BasePart") then head = root end
+    if not isPart(head) then head = root end
     return root, head
 end
 local function register(rec)
@@ -1016,22 +1027,23 @@ end
 local function readPosition(part)
     -- Copy numeric coordinates out of Matcha's wrapper while the read is valid.
     -- Missing/stale Position values should hide an entry, not remove its handle.
-    local ok, x, y, z = pcall(function()
+    local ok, coords = pcall(function()
         if not part then return nil end
         local pos = part.Position
         if pos == nil then return nil end
-        return pos.X, pos.Y, pos.Z
+        return {X=pos.X, Y=pos.Y, Z=pos.Z}
     end)
     local function finite(n)
         return type(n) == "number" and n == n and n > -math.huge and n < math.huge
     end
-    if not ok or not finite(x) or not finite(y) or not finite(z) then return nil end
-    return {X=x, Y=y, Z=z}
+    if not ok or type(coords) ~= "table" or not finite(coords.X) or not finite(coords.Y) or not finite(coords.Z) then return nil end
+    return coords
 end
 local function refreshRecord(rec)
     if rec.object.Parent == nil or rec.root.Parent == nil then removeRecord(rec.address) return end
     local kind = category(rec)
     rec.draw = false
+    rec.reason = "filtered"
     if not kind then return end
     rec.display = (kind == "escape" and "[Escape] " or "") .. rec.name
     if kind == "entity" then
@@ -1039,18 +1051,20 @@ local function refreshRecord(rec)
         if humanoid then
             rec.hp = humanoid.Health or 0
             rec.maxHp = humanoid.MaxHealth or 100
-            if rec.hp <= 0 then return end
+            if rec.hp <= 0 then rec.reason="dead" return end
         end
-    elseif rootPosition then
+    end
+    -- Native registration does not need Lua Position reads. Keep these separate.
+    register(rec)
+    if kind ~= "entity" and limitDistance then
+        if not rootPosition then rec.reason="player position unavailable" return end
         local p = readPosition(rec.root)
-        if not p then return end
+        if not p then rec.reason="item position unavailable" return end
         local dx,dy,dz = p.X-rootPosition.X,p.Y-rootPosition.Y,p.Z-rootPosition.Z
-        if dx*dx+dy*dy+dz*dz > maxDistance*maxDistance then return end
-    else
-        return -- no character during respawn: hide distance-limited items
+        if dx*dx+dy*dy+dz*dz > maxDistance*maxDistance then rec.reason="out of range" return end
     end
     rec.draw = true
-    register(rec)
+    rec.reason = rec.handle and "eligible" or "registration failed"
 end
 local function resolve(path)
     local current = Workspace
@@ -1081,7 +1095,7 @@ local function inspect(object, source, seen)
         if recordCount >= MAX_RECORDS then report("Limit", "512 registrations reached; narrow the item filter") return end
         if source == "entity" and not object:FindFirstChildOfClass("Humanoid") then return end
         local root,head = findPart(object,source=="entity")
-        if not root then return end
+        if not root then noPartMatches=noPartMatches+1 return end
         rec = candidate
         rec.address,rec.object,rec.root,rec.head = address,object,root,head
         rec.hp,rec.maxHp,rec.display,rec.draw = 100,100,name,false
@@ -1104,14 +1118,18 @@ local function scanStep()
         return
     end
     if not scan.children then
+        local folderFound=false
         local ok,children=pcall(function()
             local folder=resolve(source.path)
+            folderFound=folder~=nil
             return folder and folder:GetChildren() or {}
         end)
         if not ok then
+            folderStatus[source.id]="read error"
             report(source.id,children) scan.sourceIndex=scan.sourceIndex+1
             return -- failed reads must not be interpreted as an empty folder
         end
+        folderStatus[source.id]=folderFound and (tostring(#children) .. " direct entries") or "folder missing"
         scan.children,scan.index,scan.seen=children,1,{}
         return -- only one folder snapshot in this update
     end
@@ -1163,6 +1181,26 @@ local function selectionChanged()
     for key,rec in pairs(records) do if not category(rec) then removeRecord(key) end end
 end
 
+local function printStatus()
+    local registered, eligible = 0,0
+    local reasons = {}
+    for _,rec in pairs(records) do
+        if rec.handle then registered=registered+1 end
+        if rec.draw and category(rec) then eligible=eligible+1 end
+        reasons[rec.reason or "pending"]=(reasons[rec.reason or "pending"] or 0)+1
+    end
+    local summary="Known: "..#knownItems.." | Matched: "..recordCount.." | Registered: "..registered.." | Eligible: "..eligible
+    print("[Isle status] "..summary)
+    print("[Isle status] tools="..tostring(folderStatus.tools).."; drops="..tostring(folderStatus.drops).."; entity="..tostring(folderStatus.entity))
+    print("[Isle status] Escape="..tostring(flags.escape).." Item="..tostring(flags.item).." Gun="..tostring(flags.gun).." Entity="..tostring(flags.entity))
+    print("[Isle status] All items="..tostring(allItems).."; distance limit="..tostring(limitDistance).."; player position="..tostring(rootPosition~=nil).."; failed part matches="..noPartMatches)
+    for reason,count in pairs(reasons) do print("[Isle status] "..reason.."="..count) end
+    local names={}
+    for i=1,math.min(#knownItems,30) do names[i]=knownItems[i] end
+    print("[Isle status] First detected names: "..table.concat(names,", "))
+    UILib:Notification(summary,10)
+end
+
 -- UI SETUP
 UILib:SetMenuTitle("Isle Native ESP")
 UILib:CenterMenu()
@@ -1170,14 +1208,17 @@ local main=UILib:Tab("ESP")
 local visuals=main:Section("Visuals")
 local filters=main:Section("Item Filter")
 visuals:Slider("Max Distance",500,50,50,2000,"",function(v) maxDistance=v nextRefresh=0 end)
+visuals:Toggle("Limit Distance",false,function(v) limitDistance=v nextRefresh=0 end)
 for _,spec in ipairs({{"Escape ESP","escape"},{"Item ESP","item"},{"Gun ESP","gun"},{"Entity ESP","entity"}}) do
     local key=spec[2]
     visuals:Toggle(spec[1],false,function(v) flags[key]=v selectionChanged() end)
 end
 visuals:Button("Unload",function() session.running=false end)
+local allItemsToggle=filters:Toggle("All item types",true,function(v) allItems=v selectionChanged() end)
 itemDropdown=filters:Dropdown("Shown item types",{},knownItems,true,function(values)
     enabledItems={}
     for _,name in ipairs(values) do enabledItems[name]=true end
+    allItemsToggle:Set(false)
     selectionChanged()
 end)
 filters:Button("Select All",function()
@@ -1199,6 +1240,7 @@ routes:Button("Select All Escapes",function()
 end)
 routes:Button("Clear Escapes",function() routesDropdown:Set({}) end)
 extras:Textbox("Names, separated by commas","",function(v) extraEscapeNames=v rebuildNames() selectionChanged() end)
+extras:Button("Print ESP Status",printStatus)
 UILib:CreateSettingsTab()
 UILib:Notification("Isle Native ESP loaded. F1: menu",5)
 -- Wheel is optional; scrollbar and keyboard are always available.
