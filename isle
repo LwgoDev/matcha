@@ -1,4 +1,4 @@
--- // WOWWWWWWWW 
+-- woww 2
 
 -- Matcha-compatible Isle ESP. Stop older versions before first use.
 local session = {running = true, drawings = {}}
@@ -950,6 +950,7 @@ local aiHunter = getFolder("AIHunter")
 local gunEsp = {}
 local itemEsp = {}
 local entityEsp = {}
+local fixedEscapeEsp = {}
 
 local enabledItemTypes = {}
 local entityEspEnabled = false
@@ -1146,6 +1147,23 @@ local function renderEntry(entry,rootPos,maxDistSq)
     esp.label.Visible=true esp.box.Visible=true
 end
 
+-- Confirmed map objective: resolve the exact object, never enumerate Map.Main.
+local function updateFixedEscapes()
+    if not escapeEspEnabled or not escapeNames.rope then
+        clearEspTable(fixedEscapeEsp)
+        return
+    end
+    local object=getFolder("Map","Main","Rope")
+    local part=object and (readPosition(object) and object or object:FindFirstChildWhichIsA("BasePart"))
+    local address=object and object.Address
+    for key,entry in pairs(fixedEscapeEsp) do
+        if key~=address or not part or entry.part~=part then removeEntry(fixedEscapeEsp,key) end
+    end
+    if part and address and not fixedEscapeEsp[address] then
+        createEntry(fixedEscapeEsp,part,"Rope",address,Color3.fromRGB(80,200,255))
+    end
+end
+
 -- ===========================
 -- UI SETUP
 -- ===========================
@@ -1177,6 +1195,7 @@ end)
 espSection:Toggle("Escape ESP",false,function(value)
     escapeEspEnabled=value
     if not value then
+        clearEspTable(fixedEscapeEsp)
         if not gunEspEnabled then clearEspTable(gunEsp) end
         if not itemEspEnabled then clearEspTable(itemEsp) end
     end
@@ -1254,6 +1273,9 @@ local function rebuildEntryList()
     for _, esp in pairs(entityEsp) do
         table.insert(allEspEntries, {esp = esp, type_ = "entity"})
     end
+    for _, esp in pairs(fixedEscapeEsp) do
+        table.insert(allEspEntries, {esp = esp, type_ = "fixedEscape"})
+    end
 end
 
 local character = Players.LocalPlayer and Players.LocalPlayer.Character
@@ -1298,6 +1320,7 @@ while session.running do
         if needsUpdate then
             itemFilterDropdown:UpdateChoices(knownItemTypes)
         end
+        updateFixedEscapes()
         rebuildEntryList()
     end
 
