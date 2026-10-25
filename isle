@@ -1,7 +1,34 @@
+
+-- Matcha-compatible Isle ESP. Stop older versions before first use.
+local session = {running = true, drawings = {}}
+local function newDrawing(kind)
+    local draw = Drawing.new(kind)
+    session.drawings[draw] = true
+    return draw
+end
+local function releaseDrawing(draw)
+    session.drawings[draw] = nil
+    pcall(function() draw.Visible = false end)
+    pcall(function() draw:Remove() end)
+end
+local function stopSession()
+    session.running = false
+    if session.connection then pcall(function() session.connection:Disconnect() end) end
+    for draw in pairs(session.drawings) do releaseDrawing(draw) end
+    pcall(function() setrobloxinput(true) end)
+end
+session.stop = stopSession
+-- Also stop a previous copy of this version when globals persist across runs.
+if type(_G) == "table" then
+    local previous = _G.IsleESPSession
+    if type(previous) == "table" and type(previous.stop) == "function" then pcall(previous.stop) end
+    _G.IsleESPSession = session
+end
+local function run()
 -- ===========================
 -- UI LIBRARY (inline)
 -- ===========================
-UILib = {
+local UILib = {
     _font_face = Drawing.Fonts.UI,
     _font_size = 13,
     _drawings = {},
@@ -84,12 +111,14 @@ do
     function UILib:_IsKeyPressed(keycode) return self._inputs[keycode].click end
     function UILib:_IsKeyHeld(keycode) return self._inputs[keycode].held end
     function UILib:_GetScreenSize()
+        if self._frame_screen then return self._frame_screen end
         local screenSize = Vector2.new(1920, 1080)
         local camera = workspace.CurrentCamera
         if camera and camera.ViewportSize then screenSize = camera.ViewportSize end
         return screenSize
     end
     function UILib:_GetMousePos()
+        if self._frame_mouse then return self._frame_mouse end
         local mousePos = Vector2.new()
         local myPlayer = game:GetService('Players').LocalPlayer
         if myPlayer then
@@ -115,21 +144,21 @@ do
     function UILib:_Draw(drawId, drawType, drawColor, drawZIndex, ...)
         local draw = self._drawings[drawId]
         if drawType == 'rect' then
-            if not draw then self._drawings[drawId] = Drawing.new('Square') return self:_Draw(drawId, drawType, drawColor, drawZIndex, ...) end
+            if not draw then self._drawings[drawId] = newDrawing('Square') return self:_Draw(drawId, drawType, drawColor, drawZIndex, ...) end
             local rectPosition, rectSize, rectFilled = ...
             draw.Position = rectPosition draw.Size = rectSize draw.Filled = rectFilled
         elseif drawType == 'text' then
-            if not draw then self._drawings[drawId] = Drawing.new('Text') return self:_Draw(drawId, drawType, drawColor, drawZIndex, ...) end
+            if not draw then self._drawings[drawId] = newDrawing('Text') return self:_Draw(drawId, drawType, drawColor, drawZIndex, ...) end
             local textPosition, textContent, textOutline, textAlign, textSize, textFontFace = ...
             if textAlign == 'center' then draw.Center = true draw.Position = textPosition
             else draw.Position = textPosition end
             draw.Text = textContent draw.Outline = textOutline draw.Font = textFontFace or self._font_face draw.Size = textSize or self._font_size
         elseif drawType == 'line' then
-            if not draw then self._drawings[drawId] = Drawing.new('Line') return self:_Draw(drawId, drawType, drawColor, drawZIndex, ...) end
+            if not draw then self._drawings[drawId] = newDrawing('Line') return self:_Draw(drawId, drawType, drawColor, drawZIndex, ...) end
             local lineFrom, lineTo, lineThickness = ...
-            draw.From = lineFrom draw.To = lineTo draw.Filled = lineThickness or 1
+            draw.From = lineFrom draw.To = lineTo draw.Thickness = lineThickness or 1
         elseif drawType == 'triangle' then
-            if not draw then self._drawings[drawId] = Drawing.new('Triangle') return self:_Draw(drawId, drawType, drawColor, drawZIndex, ...) end
+            if not draw then self._drawings[drawId] = newDrawing('Triangle') return self:_Draw(drawId, drawType, drawColor, drawZIndex, ...) end
             local triangleFilled, trianglePointA, trianglePointB, trianglePointC = ...
             draw.Filled = triangleFilled draw.PointA = trianglePointA draw.PointB = trianglePointB draw.PointC = trianglePointC
         elseif drawType == 'gradient' then
@@ -163,10 +192,16 @@ do
             end
             return
         end
-        draw.Color = drawColor draw.ZIndex = drawZIndex draw.Visible = true
+        if draw.Color ~= drawColor then draw.Color = drawColor end
+        if draw.ZIndex ~= drawZIndex then draw.ZIndex = drawZIndex end
+        if not draw.Visible then draw.Visible = true end
     end
-    function UILib:_RemoveDraw(drawId) local d = self._drawings[drawId] if d then d:Remove() end end
-    function UILib:_Undraw(drawId) local d = self._drawings[drawId] if d then d.Visible = false end end
+    function UILib:_RemoveDraw(drawId)
+        local d = self._drawings[drawId]
+        self._drawings[drawId] = nil
+        if d then releaseDrawing(d) end
+    end
+    function UILib:_Undraw(drawId) local d = self._drawings[drawId] if d and d.Visible then d.Visible = false end end
     function UILib:_SetOpacity(drawId, opacity) local d = self._drawings[drawId] if d then d.Transparency = opacity end end
     function UILib:_RemoveDrawStartsWith(drawId)
         for drawName, _ in pairs(self._drawings) do
@@ -341,10 +376,14 @@ do
         return settingsTab, menuSection, themingSection
     end
     function UILib:Unload()
+        session.running = false
         if self._wheel_connection then self._wheel_connection:Disconnect() end
         self:_RemoveDrawStartsWith('') setrobloxinput(true)
     end
     function UILib:Step()
+        self._frame_mouse = nil self._frame_screen = nil
+        self._frame_mouse = self:_GetMousePos()
+        self._frame_screen = self:_GetScreenSize()
         local menuTitle = self._custom_title_enabled and self._custom_title or self.title
         setrobloxinput(not self._menu_open)
         for keycode, inputData in pairs(self._inputs) do
@@ -405,15 +444,11 @@ do
             else self._menu_drag = nil end
             local dropdown = self._active_dropdown
             if dropdown then
-                local dropdownFade = 1 - (dropdown._spawned_at - (os.clock() - 0.25)) / 0.25
-                if dropdownFade < 1.1 then
-                    self:_SetOpacityStartsWith('dropdown_', clamp(dropdownFade, 0, 1))
-                end
+                -- Keep popup drawings visible between frames (no hide/show flicker).
 
                 -- init scroll offset
                 if dropdown._scroll == nil then dropdown._scroll = 0 end
 
-                self:_UndrawStartsWith('dropdown_')
                 local maxVisible = math.max(1, math.min(8, math.floor((self:_GetScreenSize().y - self._padding * 2) / (self._font_size + self._padding))))
                 local itemHeight = self._font_size + self._padding
                 local totalChoices = #dropdown.choices
@@ -471,11 +506,14 @@ do
                     end
                     self:_Draw('dropdown_scrollbar_track', 'rect', self._theming.border0, 102, Vector2.new(scrollbarX, dropdownOrigin.y + 2), Vector2.new(4, scrollbarTrackHeight), true)
                     self:_Draw('dropdown_scrollbar_thumb', 'rect', self._theming.accent, 103, Vector2.new(scrollbarX, dropdownOrigin.y + 2 + scrollbarThumbY), Vector2.new(4, scrollbarThumbHeight), true)
+                else
+                    self:_Undraw('dropdown_scrollbar_track')
+                    self:_Undraw('dropdown_scrollbar_thumb')
                 end
 
-                -- hide choices that are outside the visible range
-                for i = 1, totalChoices do
-                    local visibleIndex = i - dropdown._scroll
+                -- Reuse eight row drawings regardless of the number of choices.
+                for visibleIndex = 1, maxVisible do
+                    local i = visibleIndex + dropdown._scroll
                     local choice = dropdown.choices[i]
                     local choiceFoundIndex = nil
                     for _ci, _cv in ipairs(dropdown.value) do
@@ -484,10 +522,9 @@ do
                             break
                         end
                     end
-                    local labelSize = self:_GetTextBounds(choice)
-                    local choiceDrawId = 'dropdown_choice_' .. tostring(i)
+                    local choiceDrawId = 'dropdown_choice_' .. tostring(visibleIndex)
 
-                    if visibleIndex >= 1 and visibleIndex <= maxVisible then
+                    if choice then
                         local choiceY = dropdownOrigin.y + self._padding + (visibleIndex - 1) * itemHeight
                         local choiceOrigin = Vector2.new(dropdownOrigin.x + self._padding, choiceY)
                         local choiceSize = Vector2.new(dropdown.width - self._padding * 2 - 12, itemHeight)
@@ -519,6 +556,7 @@ do
                     end
                 end
 
+                for row = maxVisible + 1, 8 do self:_Undraw('dropdown_choice_' .. row) end
                 if clickFrame and shouldCancel then
                     self:_RemoveDropdown()
                 end
@@ -887,7 +925,8 @@ local escapeGroupOrder = {"Hot Air Balloon", "The Air", "The Sea", "The Facility
 local selectedEscapes = {"Hot Air Balloon"}
 local extraEscapeNames = ""
 local escapeNames = {}
-local scanOutsideLoot = false
+local escapeScan = nil
+local nextEscapeScan = 0
 
 -- Some external Lua runtimes do not expose Roblox input signals.
 -- Scrollbar dragging and Up/Down/PageUp/PageDown remain available there.
@@ -897,6 +936,7 @@ pcall(function()
             UILib._wheel_delta = UILib._wheel_delta + input.Position.Z
         end
     end)
+    session.connection = UILib._wheel_connection
 end)
 
 local workspace = game:GetService("Workspace")
@@ -951,8 +991,8 @@ end
 
 local function removeEntry(espTable, address)
     if espTable[address] then
-        espTable[address].label:Remove()
-        espTable[address].box:Remove()
+        releaseDrawing(espTable[address].label)
+        releaseDrawing(espTable[address].box)
         espTable[address].removed = true
         espTable[address] = nil
     end
@@ -962,7 +1002,7 @@ local function createEntry(espTable, part, name, address, color)
     local baseName = getBaseName(name)
     local drawColor = isGunName(baseName) and Color3.fromRGB(255, 255, 0) or color
 
-    local label = Drawing.new("Text")
+    local label = newDrawing("Text")
     label.Color = drawColor
     label.Outline = true
     label.Center = true
@@ -971,7 +1011,7 @@ local function createEntry(espTable, part, name, address, color)
     label.Size = 14
     label.Text = baseName
 
-    local box = Drawing.new("Square")
+    local box = newDrawing("Square")
     box.Color = drawColor
     box.Filled = false
     box.Thickness = 1
@@ -1057,6 +1097,7 @@ local function escapeKey(name)
 end
 
 local function rebuildEscapeNames()
+    escapeScan = nil nextEscapeScan = 0
     escapeNames = {}
     for _, group in ipairs(selectedEscapes) do
         for _, name in ipairs(escapeGroups[group] or {}) do
@@ -1072,48 +1113,62 @@ end
 rebuildEscapeNames()
 
 local function escapePart(object)
-    local ok, position = pcall(function() return object.Position end)
-    if ok and position then return object end
-    return object:FindFirstChildWhichIsA("BasePart", true)
+    -- Matcha documents only the single-argument form of this method.
+    -- Never probe Position on a Model/Folder or recursively traverse map geometry.
+    if object:IsA("BasePart") then return object end
+    return object:FindFirstChildWhichIsA("BasePart")
 end
 
 local function updateEscapeEsp()
-    local found = {}
-    local pending = {}
-    if scanOutsideLoot then
-        pending[1] = workspace
-    else
-        -- Resolve folders again so late-loading folders and new rounds are handled.
-        local map = workspace:FindFirstChild("Map")
-        local ignore = map and map:FindFirstChild("Ignore")
-        local itemFolder = ignore and ignore:FindFirstChild("Tools")
-        local gameFolder = workspace:FindFirstChild("Game")
-        local loot = gameFolder and gameFolder:FindFirstChild("Loot")
-        local dropFolder = loot and loot:FindFirstChild("drops")
-        if itemFolder then table.insert(pending, itemFolder) end
-        if dropFolder then table.insert(pending, dropFolder) end
+    if not escapeEspEnabled then
+        escapeScan = nil nextEscapeScan = 0
+        return false
     end
-    while #pending > 0 do
-        local parent = table.remove(pending)
-        for _, object in ipairs(parent:GetChildren()) do
-            local part = nil
-            if escapeNames[escapeKey(object.Name)] then part = escapePart(object) end
-            if part then
-                local key = object.Address or object
-                found[key] = true
+    if not escapeScan then
+        if os.clock() < nextEscapeScan or not next(escapeNames) then return false end
+        escapeScan = {folders = {tools, drops}, folderIndex = 1, index = 1, found = {}}
+    end
+    local scan = escapeScan
+    -- Fetch at most one known loot folder per frame; no descendant traversal.
+    if not scan.children then
+        if scan.folderIndex > 2 then
+            local changed = false
+            for key in pairs(escapeEsp) do
+                if not scan.found[key] then removeEntry(escapeEsp, key) changed = true end
+            end
+            escapeScan = nil nextEscapeScan = os.clock() + 3
+            return changed
+        end
+        local folder = scan.folders[scan.folderIndex]
+        scan.folderIndex = scan.folderIndex + 1
+        scan.children = folder and folder:GetChildren() or {}
+        scan.index = 1
+        return false
+    end
+    local changed = false
+    local last = math.min(#scan.children, scan.index + 7)
+    for i = scan.index, last do
+        local object = scan.children[i]
+        local name = object.Name
+        if escapeNames[escapeKey(name)] then
+            local key = object.Address
+            if key then
+                -- Existing matches do not need another model/part search.
                 local existing = escapeEsp[key]
-                if existing and existing.part ~= part then removeEntry(escapeEsp, key) end
-                if not escapeEsp[key] then
-                    createEntry(escapeEsp, part, object.Name, key, Color3.fromRGB(80, 200, 255))
+                local part = existing and existing.part or escapePart(object)
+                if part then
+                    scan.found[key] = true
+                    if not existing then
+                        createEntry(escapeEsp, part, name, key, Color3.fromRGB(80, 200, 255))
+                        changed = true
+                    end
                 end
-            else
-                table.insert(pending, object)
             end
         end
     end
-    for key in pairs(escapeEsp) do
-        if not found[key] then removeEntry(escapeEsp, key) end
-    end
+    scan.index = last + 1
+    if scan.index > #scan.children then scan.children = nil end
+    return changed
 end
 
 -- ===========================
@@ -1146,6 +1201,7 @@ end)
 
 espSection:Toggle("Escape ESP", false, function(newValue)
     escapeEspEnabled = newValue
+    escapeScan = nil nextEscapeScan = 0
     if not newValue then clearEspTable(escapeEsp) end
 end)
 
@@ -1162,10 +1218,6 @@ escapeSection:Button("Select All Escapes", function()
 end)
 escapeSection:Button("Clear Escapes", function() escapeDropdown:Set({}) end)
 local escapeOptions = escapeTab:Section("Search options")
-escapeOptions:Toggle("Scan outside loot folders", false, function(value)
-    scanOutsideLoot = value
-    clearEspTable(escapeEsp)
-end)
 escapeOptions:Textbox("Extra names (comma separated)", "", function(value)
     extraEscapeNames = value
     rebuildEscapeNames()
@@ -1227,8 +1279,10 @@ local character = Players.LocalPlayer and Players.LocalPlayer.Character
 local rootPart = character and character:FindFirstChild("HumanoidRootPart")
 local rootUpdateTick = 0
 
-while true do
+while session.running do
     UILib:Step()
+    if not session.running then break end
+    if updateEscapeEsp() then rebuildEntryList() end
 
     rootUpdateTick = rootUpdateTick + 1
     if rootUpdateTick >= 60 then
@@ -1308,7 +1362,6 @@ while true do
         if itemEspEnabled then
             needsUpdate = updateEspTable(itemEsp, tools, Color3.fromRGB(0, 255, 128), itemEspEnabled, true)
         end
-        if escapeEspEnabled then updateEscapeEsp() end
         if entityEspEnabled then
             updateEspTable(entityEsp, aiHunter, Color3.fromRGB(255, 60, 60), entityEspEnabled, "entity")
         end
@@ -1319,4 +1372,11 @@ while true do
     end
 
     task.wait(0.016)
+end
+end
+local ok, err = pcall(run)
+stopSession()
+if not ok then
+    print("[Isle ESP stopped] " .. tostring(err))
+    pcall(function() notify("Isle ESP stopped", tostring(err), 10) end)
 end
