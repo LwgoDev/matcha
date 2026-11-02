@@ -1,0 +1,107 @@
+    elseif kind == "Colorpicker" then value = value or Color3.fromRGB(255, 255, 255)
+    elseif kind == "Paragraph" then
+        config.Content = tostring(config.Content or "")
+        value = config.Content
+    end
+    if kind ~= "Button" then value = normalize(kind, config, value) end
+    config.Default = copy(value)
+    local control = setmetatable({ Owner = owner, Kind = kind, Config = config,
+        _value = copy(value), _listeners = {}, _active = false, _ready = false }, Control)
+    local function changed(incoming)
+        if owner.Unloaded or not control._ready or control._setting then return end
+        -- Wabi returns a set for multi dropdowns; our public value is an array.
+        if kind == "Dropdown" and config.Multi and owner.UILibName == "WabiSabi" then
+            local values = {}
+            for _, option in ipairs(config.Options) do if incoming[option] then values[#values + 1] = option end end
+            incoming = values
+        end
+        local ok, normalized = pcall(normalize, kind, config, incoming)
+        -- Keep invalid native edits (e.g. nonnumeric Larp input) out of public state.
+        local desired = ok and normalized or control._value
+        if not ok or not equal(incoming, desired) then
+            control._setting = true
+            local wrote, err = pcall(control._write, copy(desired))
+            control._setting = false
+            if not wrote then warn("[UIWrapper] " .. tostring(err)); return end
+        end
+        if ok then control:_publish(normalized) end
+    end
+    local function activated(nativeState)
+        if owner.Unloaded or not control._ready then return end
+        if kind == "Keybind" then
+            local state = true
+            if owner.UILibName == "WabiSabi" and config.Mode ~= "Press" and type(nativeState) == "boolean" then
+                state = nativeState
+            elseif config.Mode == "Toggle" then
+                control._active = not control._active
+                state = control._active
+            end
+            safeCallback(config.Callback, state)
+        else safeCallback(config.Callback) end
+    end
+    local factory = owner.UILibName == "WabiSabi" and wabiControl
+        or owner.UILibName == "Larp" and larpControl or matchaControl
+    control.Raw, control._write = factory(self:_parent(), kind, config, changed, activated)
+    control._ready = true
+    if config.Id then owner.Options[config.Id] = control end
+    return control
+end
+
+for _, kind in ipairs({ "Paragraph", "Button", "Toggle", "Slider", "Dropdown", "Keybind", "Input", "Colorpicker" }) do
+    local controlKind = kind
+    Container["Add" .. controlKind] = function(self, config) return self:_add(controlKind, config) end
+end
+Container.AddColorPicker = Container.AddColorpicker
+
+function UIWrapper:Notify(config)
+    self:_alive()
+    config = config or {}
+    if self.UILibName == "WabiSabi" then return self.Raw:Notify(config) end
+    if self.UILibName == "Larp" then
+        assert(self.Window, "UIWrapper: create a window before notifying")
+        local text = config.Content or ""
+        if config.SubContent then text = text .. "\n" .. config.SubContent end
+        return self.Window.Raw:Notify(config.Title or "Notification", text)
+    end
+    -- Upstream Matcha's Notify is empty. Provide a visible console fallback.
+    warn("[" .. (config.Title or "Notification") .. "] " .. (config.Content or ""))
+    return false, "Matcha has no notification UI; message was written to the console"
+end
+
+function Window:Dialog(config)
+    self.Owner:_require("Dialog")
+    return self.Raw:Dialog(config)
+end
+
+function Window:BuildInterfaceSection(tab)
+    self.Owner:_require("Config")
+    assert(tab.Owner == self.Owner and tab.IsTab, "UIWrapper: pass one of this window's tabs")
+    return self.Raw:BuildInterfaceSection(tab.Raw)
+end
+
+function Window:BuildConfigSection(tab)
+    self.Owner:_require("Config")
+    assert(tab.Owner == self.Owner and tab.IsTab, "UIWrapper: pass one of this window's tabs")
+    return self.Raw:BuildConfigSection(tab.Raw)
+end
+
+function UIWrapper:LoadAutoloadConfig()
+    self:_require("Config")
+    return self.Raw:LoadAutoloadConfig()
+end
+
+function UIWrapper:Destroy()
+    if self.Unloaded then return end
+    self.Unloaded = true
+    if self.UILibName == "Matcha" then
+        if self.Window then self.Window.Raw:Unload() end
+    elseif self.UILibName == "Larp" then
+        if self.Window then self.Window.Raw:Destroy() end
+    else self.Raw:Destroy() end
+end
+
+Window.Destroy = function(self) return self.Owner:Destroy() end
+Window.Unload = Window.Destroy
+
+_G.UIWrapper = UIWrapper
+return UIWrapper
