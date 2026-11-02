@@ -1,3 +1,5 @@
+-- One public API for Wabi Sabi, Larp and zee-7654's UI ("Matcha").
+-- Select with UIWrapper.new("Larp"), or change the default below.
 local UIWrapper = {}
 UIWrapper.__index = UIWrapper
 UIWrapper.UILibName = "WabiSabi" -- "WabiSabi", "Larp", "Matcha"
@@ -139,6 +141,8 @@ function UIWrapper.New(options)
     end
     return self
 end
+
+UIWrapper.new = UIWrapper.New
 
 function UIWrapper:Supports(feature)
     return Capabilities[self.UILibName][feature] == true
@@ -549,5 +553,6 @@ end
 Window.Destroy = function(self) return self.Owner:Destroy() end
 Window.Unload = Window.Destroy
 
+-- Also export globally for environments which discard a loaded chunk's return.
 _G.UIWrapper = UIWrapper
 return UIWrapper
