@@ -1,3 +1,449 @@
+local UIWrapper = {}
+UIWrapper.__index = UIWrapper
+UIWrapper.UILibName = "WabiSabi" -- "WabiSabi", "Larp", "Matcha"
+
+local Sources = {
+    WabiSabi = { URL = "https://scripts.wabisabi.mom/wabi-sabi-ui-lib.lua", Global = "WabiSabi" },
+    Larp = { URL = "https://raw.githubusercontent.com/kaiii-alt/LarpUI/refs/heads/main/larp.lua", Global = "Larp" },
+    Matcha = { URL = "https://raw.githubusercontent.com/zee-7654/UI/refs/heads/main/UI.lua", Global = "UI" },
+}
+
+local Capabilities = {
+    WabiSabi = { Paragraph = true, Button = true, Toggle = true, Slider = true,
+        Dropdown = true, MultiDropdown = true, Keybind = true, KeybindHold = true,
+        Input = true, Colorpicker = true, Notify = true, Dialog = true, Config = true },
+    Larp = { Button = true, Toggle = true, Slider = true, Dropdown = true,
+        MultiDropdown = true, Keybind = true, Input = true, Colorpicker = true, Notify = true },
+    Matcha = { Paragraph = true, Button = true, Toggle = true, Slider = true,
+        Dropdown = true, MultiDropdown = true, Keybind = true },
+}
+
+local function copy(value)
+    if type(value) ~= "table" then return value end
+    local result = {}
+    for key, item in pairs(value) do result[key] = item end
+    return result
+end
+
+local function equal(a, b)
+    if type(a) ~= "table" or type(b) ~= "table" then return a == b end
+    for k, v in pairs(a) do if b[k] ~= v then return false end end
+    for k, v in pairs(b) do if a[k] ~= v then return false end end
+    return true
+end
+
+local function contains(list, value)
+    for _, item in ipairs(list) do if item == value then return true end end
+    return false
+end
+
+local DigitNames = { "Zero", "One", "Two", "Three", "Four", "Five", "Six", "Seven", "Eight", "Nine" }
+local KeyAliases = { Unknown = "None", Ctrl = "LeftControl", Control = "LeftControl",
+    Shift = "LeftShift", Alt = "LeftAlt", Esc = "Escape", MB1 = "MouseButton1",
+    MB2 = "MouseButton2", Mouse1 = "MouseButton1", Mouse2 = "MouseButton2", Enter = "Return" }
+local WabiKeys = { LeftControl = "Ctrl", RightControl = "Ctrl", LeftShift = "Shift",
+    RightShift = "Shift", LeftAlt = "Alt", RightAlt = "Alt", Escape = "Esc",
+    MouseButton1 = "MB1", MouseButton2 = "MB2" }
+for i, name in ipairs(DigitNames) do
+    KeyAliases[tostring(i - 1)] = name
+    WabiKeys[name] = tostring(i - 1)
+end
+
+local function canonicalKey(name)
+    name = name:gsub("^Enum%.KeyCode%.", "")
+    return KeyAliases[name] or name
+end
+
+local function keyName(value)
+    if value == nil then return "None" end
+    if type(value) == "string" then return canonicalKey(value) end
+    local ok, name = pcall(function() return value.Name end)
+    if ok and name then return canonicalKey(name) end
+    if type(Enum.KeyCode) == "table" then
+        for name, code in pairs(Enum.KeyCode) do if code == value then return canonicalKey(name) end end
+    end
+    error("UIWrapper: use a key name such as 'F1', or an Enum.KeyCode value", 3)
+end
+
+local function enumKey(name)
+    if name == "None" then return Enum.KeyCode.Unknown end
+    local ok, key = pcall(function() return Enum.KeyCode[name] end)
+    assert(ok and key, "UIWrapper: unknown key '" .. tostring(name) .. "'")
+    return key
+end
+
+local CommonKeys = { None = true, Space = true, Tab = true, End = true, Home = true,
+    Insert = true, Delete = true, Left = true, Right = true, Up = true, Down = true,
+    LeftControl = true, RightControl = true, LeftShift = true, RightShift = true,
+    LeftAlt = true, RightAlt = true }
+for byte = 65, 90 do CommonKeys[string.char(byte)] = true end
+for _, name in ipairs(DigitNames) do CommonKeys[name] = true end
+for i = 1, 12 do CommonKeys["F" .. i] = true end
+local LarpExtraKeys = { Return = true, Backspace = true, PageUp = true, PageDown = true,
+    Minus = true, Equals = true, Comma = true, Period = true, Slash = true,
+    Semicolon = true, Quote = true, LeftBracket = true, RightBracket = true,
+    BackSlash = true, Backquote = true }
+local WabiExtraKeys = { Escape = true, Return = true, Backspace = true,
+    MouseButton1 = true, MouseButton2 = true, Mouse4 = true, Mouse5 = true }
+
+local function validateKey(library, name)
+    if library == "Matcha" then enumKey(name); return end
+    local extra = library == "Larp" and LarpExtraKeys or WabiExtraKeys
+    assert(CommonKeys[name] or extra[name], "UIWrapper: " .. library .. " does not support key '" .. name .. "'")
+end
+
+local function safeCallback(fn, ...)
+    if not fn then return end
+    local ok, err = pcall(fn, ...)
+    if not ok then warn("[UIWrapper callback] " .. tostring(err)) end
+end
+
+local function loadLibrary(name, options)
+    if options.Library then return options.Library end
+    local source = Sources[name]
+    local get = options.HttpGet or function(url)
+        if type(httpget) == "function" then return httpget(url) end
+        return game:HttpGet(url)
+    end
+    assert(type(loadstring) == "function", "UIWrapper: loadstring is unavailable; pass Library = yourLoadedLibrary")
+    local ok, code = pcall(get, options.URL or source.URL)
+    assert(ok, "UIWrapper: failed to download " .. name .. ": " .. tostring(code))
+    local chunk, err = loadstring(code)
+    assert(chunk, "UIWrapper: cannot compile " .. name .. ": " .. tostring(err))
+    local ran, result = pcall(chunk)
+    assert(ran, "UIWrapper: failed to initialize " .. name .. ": " .. tostring(result))
+    if type(result) == "table" then return result end
+    -- These loaders use different global environments and may return nothing.
+    local environments = {}
+    if type(getfenv) == "function" then
+        environments[#environments + 1] = getfenv(chunk)
+        environments[#environments + 1] = getfenv(0)
+    end
+    if type(getgenv) == "function" then environments[#environments + 1] = getgenv() end
+    environments[#environments + 1] = _G
+    for _, environment in ipairs(environments) do
+        if type(environment[source.Global]) == "table" then return environment[source.Global] end
+    end
+    error("UIWrapper: " .. name .. " did not expose " .. source.Global .. "; pass Library explicitly", 3)
+end
+
+function UIWrapper.New(options)
+    if type(options) == "string" then options = { UILibName = options } end
+    options = options or {}
+    local name = options.UILibName or UIWrapper.UILibName
+    assert(Sources[name], "UIWrapper: unknown UILibName '" .. tostring(name) .. "'")
+    local self = setmetatable({ UILibName = name, Raw = loadLibrary(name, options),
+        Options = {}, Unloaded = false }, UIWrapper)
+    if name == "WabiSabi" and type(self.Raw.OnUnload) == "function" then
+        self.Raw:OnUnload(function() self.Unloaded = true end)
+    end
+    return self
+end
+
+function UIWrapper:Supports(feature)
+    return Capabilities[self.UILibName][feature] == true
+end
+
+function UIWrapper:_alive()
+    assert(not self.Unloaded, "UIWrapper: this UI has been destroyed")
+end
+
+function UIWrapper:_require(feature)
+    self:_alive()
+    assert(self:Supports(feature), "UIWrapper: " .. self.UILibName .. " does not support " .. feature)
+end
+
+local Window, Container, Control = {}, {}, {}
+Window.__index = Window
+Container.__index = Container
+Control.__index = function(self, key)
+    if key == "Value" then return copy(self._value) end
+    return Control[key]
+end
+Control.__newindex = function(self, key, value)
+    if key == "Value" then self:SetValue(value) else rawset(self, key, value) end
+end
+
+local function container(owner, raw, isTab)
+    return setmetatable({ Owner = owner, Raw = raw, IsTab = isTab }, Container)
+end
+
+function UIWrapper:CreateWindow(config)
+    self:_alive()
+    assert(not self.Window, "UIWrapper: create one window per wrapper instance")
+    config = copy(config or {})
+    local raw
+    if self.UILibName == "WabiSabi" then
+        raw = self.Raw:CreateWindow(config)
+    elseif self.UILibName == "Larp" then
+        raw = self.Raw.new(config.Title or "Window", config.Icon)
+        if config.Size then raw.w, raw.h = config.Size.X, config.Size.Y end
+    else
+        raw = self.Raw:Window(config)
+    end
+    self.Window = setmetatable({ Owner = self, Raw = raw }, Window)
+    return self.Window
+end
+
+function Window:AddTab(config)
+    self.Owner:_alive()
+    if type(config) == "string" then config = { Title = config } end
+    config = copy(config or {})
+    local name, raw = self.Owner.UILibName
+    if name == "WabiSabi" then raw = self.Raw:AddTab(config)
+    elseif name == "Larp" then
+        -- Larp uses asset IDs/base64 for icons, rather than Lucide names.
+        local icon = config.LarpIcon
+        if not icon and tonumber(config.Icon) then icon = config.Icon end
+        raw = self.Raw:addPage(config.Title or "Tab", icon)
+    else raw = self.Raw:Tab(config) end
+    return container(self.Owner, raw, true)
+end
+
+function Container:AddSection(config)
+    self.Owner:_alive()
+    assert(self.IsTab, "UIWrapper: sections belong to tabs")
+    if type(config) == "string" then config = { Title = config } end
+    config = copy(config or {})
+    local raw, name = nil, self.Owner.UILibName
+    if name == "WabiSabi" then raw = self.Raw:AddSection(config.Title or "Section")
+    elseif name == "Larp" then raw = self.Raw:addSection(config.Title or "Section")
+    else
+        -- Upstream's Collapsed=true means the contents are expanded.
+        local expanded = config.Collapsed ~= true
+        config.Collapsed = true
+        raw = self.Raw:Section(config)
+        raw.Internal.Collapsed = expanded
+    end
+    return container(self.Owner, raw, false)
+end
+
+function Container:_parent()
+    if not self.IsTab or self.Owner.UILibName == "WabiSabi" then return self.Raw end
+    if not self.DefaultSection then self.DefaultSection = self:AddSection("Controls") end
+    return self.DefaultSection.Raw
+end
+
+local function normalize(kind, config, value)
+    if kind == "Toggle" then
+        assert(type(value) == "boolean", "Toggle values must be boolean")
+    elseif kind == "Slider" then
+        assert(type(value) == "number" and value == value, "Slider values must be numbers")
+        value = math.max(config.Min, math.min(config.Max, value))
+        local step = config.Step
+        value = math.floor(value / step + 0.5) * step
+        value = math.max(config.Min, math.min(config.Max, value))
+    elseif kind == "Dropdown" then
+        if config.Multi then
+            assert(type(value) == "table", "Multi dropdown values must be arrays")
+            for _, item in ipairs(value) do
+                assert(contains(config.Options, item), "Unknown dropdown option: " .. tostring(item))
+            end
+            local ordered = {}
+            for _, item in ipairs(config.Options) do
+                if contains(value, item) then ordered[#ordered + 1] = item end
+            end
+            return ordered
+        end
+        assert(contains(config.Options, value), "Unknown dropdown option: " .. tostring(value))
+    elseif kind == "Keybind" then
+        value = keyName(value)
+        validateKey(config._LibraryName, value)
+    elseif kind == "Input" then
+        value = tostring(value)
+        if config.MaxLength then value = value:sub(1, config.MaxLength) end
+        assert(not config.Numeric or value == "" or tonumber(value), "Input requires a number")
+    elseif kind == "Paragraph" then value = tostring(value)
+    elseif kind == "Colorpicker" then
+        assert(typeof(value) == "Color3", "Colorpicker values must be Color3")
+    end
+    return value
+end
+
+function Control:_publish(value)
+    if equal(value, self._value) then return end
+    self._value = copy(value)
+    if self.Kind ~= "Keybind" then safeCallback(self.Config.Callback, copy(value)) end
+    local listeners = copy(self._listeners)
+    for _, listener in ipairs(listeners) do safeCallback(listener, copy(value)) end
+end
+
+function Control:GetValue()
+    self.Owner:_alive()
+    return copy(self._value)
+end
+
+function Control:SetValue(value)
+    self.Owner:_alive()
+    assert(self.Kind ~= "Button", "UIWrapper: buttons have no value")
+    value = normalize(self.Kind, self.Config, value)
+    self._setting = true
+    local ok, err = pcall(self._write, copy(value))
+    self._setting = false
+    if not ok then error(err, 2) end
+    self:_publish(value)
+    return self
+end
+
+function Control:OnChanged(callback)
+    self.Owner:_alive()
+    assert(type(callback) == "function", "UIWrapper: OnChanged needs a function")
+    self._listeners[#self._listeners + 1] = callback
+    -- Deliberately no immediate callback: only actual changes are emitted.
+    return self
+end
+
+function Control:SetContent(content)
+    assert(self.Kind == "Paragraph", "UIWrapper: SetContent is for paragraphs")
+    return self:SetValue(content)
+end
+
+function Control:GetState()
+    self.Owner:_alive()
+    assert(self.Kind == "Keybind", "UIWrapper: GetState is for keybinds")
+    if self.Config.Mode == "Press" then return false end
+    if self.Owner.UILibName == "WabiSabi" then return self.Raw:GetState() end
+    if self.Config.Mode == "Always" then return true end
+    return self._active
+end
+
+Control.Get = Control.GetValue
+Control.Set = Control.SetValue
+
+local function wabiControl(parent, kind, config, changed, activated)
+    local c = copy(config)
+    c.Options, c.Default = copy(config.Options), copy(config.Default)
+    c.Callback = kind == "Button" and activated or changed
+    if kind == "Keybind" then
+        c.Callback, c.ChangedCallback = activated, nil
+        c.Default = WabiKeys[c.Default] or c.Default
+        if c.Mode == "Press" then c.Mode = "Toggle" end
+    end
+    local raw = parent["Add" .. kind](parent, c)
+    if kind == "Keybind" then
+        -- OnChanged also catches rebinding through the keybind's UI.
+        raw:OnChanged(changed)
+    end
+    if kind == "Dropdown" and not config.Multi then
+        -- Native numeric defaults are interpreted as indices; ours are values.
+        raw:SetValue(config.Default)
+    end
+    return raw, function(value)
+        if kind == "Keybind" then value = WabiKeys[value] or value end
+        raw:SetValue(value)
+    end
+end
+
+local function matchaControl(parent, kind, config, changed, activated)
+    local c = copy(config)
+    c.Options, c.Default = copy(config.Options), copy(config.Default)
+    local raw
+    if kind == "Button" then raw = parent:Button(c, activated)
+    elseif kind == "Paragraph" then
+        local function text(value)
+            return (c.Title ~= "" and (c.Title .. "\n") or "") .. value
+        end
+        raw = parent:Label({ Title = text(c.Content) })
+        return raw, function(value) raw:Set(text(value)) end
+    elseif kind == "Keybind" then
+        c.Key = enumKey(c.Default)
+        raw = parent:Keybind(c, activated, changed)
+        return raw, function(value) raw.Options.Key = enumKey(value) end
+    elseif kind == "Dropdown" and c.Multi then raw = parent:MultiDropdown(c, changed)
+    elseif kind == "Toggle" then raw = parent:Checkbox(c, changed)
+    else raw = parent[kind](parent, c, changed) end
+    return raw, function(value) raw:Set(copy(value)) end
+end
+
+local function larpControl(parent, kind, c, changed, activated)
+    local raw
+    if kind == "Button" then raw = parent:addButton(c.Title, activated)
+    elseif kind == "Toggle" then
+        raw = parent:addToggle(c.Title, c.Default, changed)
+        return raw, function(v) parent:updateToggle(raw, nil, v) end
+    elseif kind == "Slider" then
+        raw = parent:addSlider(c.Title, c.Default, c.Min, c.Max, changed)
+        return raw, function(v) parent:updateSlider(raw, nil, v) end
+    elseif kind == "Dropdown" and c.Multi then
+        -- Larp has no multi dropdown: emulate it with one toggle per option.
+        local items, selection = {}, copy(c.Default)
+        for _, option in ipairs(c.Options) do
+            local item = option
+            items[#items + 1] = parent:addToggle(c.Title .. ": " .. item, contains(selection, item), function(on)
+                local nextValue = {}
+                for _, v in ipairs(c.Options) do
+                    if (v == item and on) or (v ~= item and contains(selection, v)) then
+                        nextValue[#nextValue + 1] = v
+                    end
+                end
+                selection = nextValue
+                changed(copy(selection))
+            end)
+        end
+        return items, function(value)
+            selection = copy(value)
+            for i, item in ipairs(items) do parent:updateToggle(item, nil, contains(value, c.Options[i])) end
+        end
+    elseif kind == "Dropdown" then
+        raw = parent:addDropdown(c.Title, c.Options, changed)
+        raw.selected = c.Default
+        return raw, function(v) raw.selected = v end
+    elseif kind == "Input" then
+        raw = parent:addTextbox(c.Title, c.Default, function(value, focusLost)
+            if not c.Finished or focusLost then changed(value) end
+        end)
+        return raw, function(v) parent:updateTextbox(raw, nil, v) end
+    elseif kind == "Colorpicker" then
+        raw = parent:addColorPicker(c.Title, c.Default, changed)
+        return raw, function(v) parent:updateColorPicker(raw, nil, v) end
+    elseif kind == "Keybind" then
+        raw = parent:addKeybind(c.Title, c.Default, activated, changed)
+        return raw, function(v) parent:updateKeybind(raw, nil, v == "None" and "Unknown" or v) end
+    end
+    return raw, function() end
+end
+
+function Container:_add(kind, config)
+    local owner = self.Owner
+    config = copy(config or {})
+    config._LibraryName = owner.UILibName
+    owner:_require(kind == "Dropdown" and config.Multi and "MultiDropdown" or kind)
+    config.Title = config.Title or kind
+    if config.Id then assert(not owner.Options[config.Id], "UIWrapper: duplicate Id '" .. tostring(config.Id) .. "'") end
+    local value = config.Default
+    if kind == "Toggle" then if value == nil then value = false end
+    elseif kind == "Slider" then
+        config.Min, config.Max = config.Min or 0, config.Max or 100
+        assert(config.Max > config.Min, "UIWrapper: Slider Max must exceed Min")
+        local digits = config.Rounding or 0
+        assert(digits >= 0 and digits <= 8 and digits % 1 == 0, "UIWrapper: Rounding must be an integer from 0 to 8")
+        config.Step = config.Step or 10 ^ (-digits)
+        assert(config.Step >= 0.00000001 and config.Step < math.huge,
+            "UIWrapper: Step must be finite and at least 0.00000001")
+        -- Wabi needs a decimal precision instead of a step.
+        local precision = 0
+        while precision < 8 do
+            local scaled = config.Step * 10 ^ precision
+            if math.abs(scaled - math.floor(scaled + 0.5)) < 0.0000001 then break end
+            precision = precision + 1
+        end
+        config.Rounding = math.max(digits, precision)
+        if value == nil then value = config.Min end
+    elseif kind == "Dropdown" then
+        config.Options = copy(config.Options or {})
+        for _, option in ipairs(config.Options) do
+            assert(type(option) == "string", "UIWrapper: use string dropdown options for portability")
+        end
+        assert(config.Multi or #config.Options > 0, "UIWrapper: a single dropdown needs at least one option")
+        if value == nil then value = config.Multi and {} or config.Options[1] end
+    elseif kind == "Keybind" then
+        config.Mode = config.Mode or "Toggle"
+        assert(contains({ "Press", "Toggle", "Hold", "Always" }, config.Mode), "UIWrapper: invalid keybind Mode")
+        if config.Mode == "Hold" then owner:_require("KeybindHold") end
+        value = value or "None"
+    elseif kind == "Input" then
+        if owner.UILibName == "Larp" then config.MaxLength = math.min(config.MaxLength or 64, 64) end
+        value = value or ""
     elseif kind == "Colorpicker" then value = value or Color3.fromRGB(255, 255, 255)
     elseif kind == "Paragraph" then
         config.Content = tostring(config.Content or "")
